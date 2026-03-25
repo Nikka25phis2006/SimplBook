@@ -3,24 +3,21 @@
 ═══════════════════════════════════════════════════ */
 
 /* ── DATA MODEL ───────────────────────────────────
-  topics[]  { id, name }
-  pages[]   { id, topicId, content, fcNodes[], fcEdges[] }
-  spread    index of left page in current view
+   topics[]  { id, name }
+   pages[]   { id, topicId, content, fcNodes[], fcEdges[] }
+   spread    = index of left page in current view
+             Can be >= pages.length (blank spread beyond)
 ─────────────────────────────────────────────────── */
 let topics = [];
 let pages  = [];
 let nTid = 1, nPid = 1;
 let spread = 0;
 let sbOpen = true;
-let activeEditor = null;  // DOM element currently focused
-let fcMode = false;       // whether flowchart mode is on
-let fcSide = null;        // 'L' or 'R' — which page's fc overlay is active
 
 /* ── UTILS ────────────────────────────────────────── */
-const $ = id => document.getElementById(id);
+const $  = id => document.getElementById(id);
 const topicOf  = idx => topics.find(t => t.id === (pages[idx] || {}).topicId) || null;
 const pagesFor = tid => pages.filter(p => p.topicId === tid);
-const pidx     = pid => pages.findIndex(p => p.id === pid);
 
 function extractHeadings(html) {
   const d = document.createElement('div');
@@ -51,14 +48,12 @@ function renderSidebar() {
 
     const row = document.createElement('div');
     row.className = 'topic-row' + (topic.id === activeTid ? ' active' : '');
-    const pc = pagesFor(topic.id).length;
     row.innerHTML = `<div class="topic-dot"></div>
       <span class="topic-name">${topic.name}</span>
-      <span class="topic-pgcount">${pc}p</span>`;
+      <span class="topic-pgcount">${pagesFor(topic.id).length}p</span>`;
     row.addEventListener('click', () => goToTopic(topic.id));
     g.appendChild(row);
 
-    // Headings
     const allH = [];
     pagesFor(topic.id).forEach(pg => extractHeadings(pg.content).forEach(h => allH.push(h)));
     if (allH.length) {
@@ -66,8 +61,8 @@ function renderSidebar() {
       hl.className = 'heading-list';
       allH.forEach(h => {
         const e = document.createElement('div');
-        const visible = topic.id === activeTid && (lc + rc).includes(h.text);
-        e.className = 'h-entry' + (visible ? ' hl' : '');
+        const vis = topic.id === activeTid && (lc + rc).includes(h.text);
+        e.className = 'h-entry' + (vis ? ' hl' : '');
         const b = h.tag === 'h1' ? '•' : h.tag === 'h2' ? '◦' : '▸';
         e.innerHTML = `<span class="h-bull">${b}</span><span class="h-text">${h.text}</span>`;
         e.addEventListener('click', () => goToHeading(topic.id, h.text));
@@ -83,22 +78,22 @@ function renderSidebar() {
 function goToTopic(tid) {
   const fp = pages.find(p => p.topicId === tid);
   if (!fp) return;
-  const i = pidx(fp.id);
+  const i = pages.indexOf(fp);
   navigateTo(i % 2 === 0 ? i : i - 1, 'fwd');
 }
 function goToHeading(tid, text) {
   for (const pg of pagesFor(tid)) {
     if (extractHeadings(pg.content).some(h => h.text === text)) {
-      const i = pidx(pg.id);
+      const i = pages.indexOf(pg);
       navigateTo(i % 2 === 0 ? i : i - 1, 'fwd');
       return;
     }
   }
 }
 
+/* Navigate — spread can go beyond pages.length (blank area) */
 function navigateTo(idx, dir) {
   if (idx < 0) idx = 0;
-  if (idx >= pages.length) idx = Math.max(0, pages.length - 1);
   saveContent();
   exitFcMode();
   spread = idx;
@@ -107,42 +102,40 @@ function navigateTo(idx, dir) {
 
 /* ── RENDER SPREAD ───────────────────────────────── */
 function renderSpread(dir) {
-  const sides = ['L', 'R'];
-  sides.forEach((s, i) => {
+  ['L', 'R'].forEach((s, i) => {
     const pg  = pages[spread + i];
-    const ed  = $(  'ed-' + s);
-    const num = $( 'num-' + s);
-    const lbl = $( 'lbl-' + s);
-    const ttl = $('title-' + s);
-    const wr  = $( 'wrap-' + s);
+    const ed  = $('ed-' + s);
+    const wr  = $('wrap-' + s);
 
     if (pg) {
       ed.innerHTML = pg.content || '';
-      num.textContent = 'p.' + (spread + i + 1);
+      $('num-' + s).textContent = 'p.' + (spread + i + 1);
       const t = topicOf(spread + i);
-      lbl.textContent = t ? t.name : '';
-      ttl.textContent = t ? t.name : '';
+      $('lbl-' + s).textContent   = t ? t.name : '';
+      $('title-' + s).textContent = t ? t.name : '';
       wr.style.opacity = '1';
       renderFcOverlay(s, pg);
     } else {
       ed.innerHTML = '';
-      num.textContent = lbl.textContent = ttl.textContent = '';
-      wr.style.opacity = '0.28';
+      $('num-' + s).textContent = $('lbl-' + s).textContent = $('title-' + s).textContent = '';
+      wr.style.opacity = '0.26';
       clearFcOverlay(s);
     }
   });
 
+  // Nav arrows — always enabled unless already at limit
   $('nav-prev').disabled = spread <= 0;
-  $('nav-next').disabled = spread + 2 >= pages.length;
+  // next is always enabled (lets you go to blank spread)
+  $('nav-next').disabled = false;
 
   // Flip animation
   const aL = dir === 'fwd' ? 'anim-fwd'   : 'anim-bk';
   const aR = dir === 'fwd' ? 'anim-fwd-d' : 'anim-bk-d';
-  [['wrap-L', aL], ['wrap-R', aR]].forEach(([id, cls]) => {
+  ['wrap-L', 'wrap-R'].forEach((id, i) => {
     const el = $(id);
     el.classList.remove('anim-fwd','anim-fwd-d','anim-bk','anim-bk-d');
     void el.offsetWidth;
-    el.classList.add(cls);
+    el.classList.add(i === 0 ? aL : aR);
   });
 
   renderSidebar();
@@ -150,7 +143,7 @@ function renderSpread(dir) {
 
 /* ── SAVE ─────────────────────────────────────────── */
 function saveContent() {
-  ['L','R'].forEach((s, i) => {
+  ['L', 'R'].forEach((s, i) => {
     const pg = pages[spread + i];
     if (pg) pg.content = $('ed-' + s).innerHTML;
   });
@@ -164,162 +157,129 @@ function liveInput(s) {
   }
 }
 
-$('ed-L').addEventListener('input', () => { liveInput('L'); checkOverflow('L'); });
-$('ed-R').addEventListener('input', () => { liveInput('R'); checkOverflow('R'); });
+$('ed-L').addEventListener('input', () => { liveInput('L'); scheduleOverflowCheck('L'); });
+$('ed-R').addEventListener('input', () => { liveInput('R'); scheduleOverflowCheck('R'); });
 
-['ed-L','ed-R'].forEach(id => {
-  $(id).addEventListener('focus', () => { activeEditor = $(id); });
-  // Make keyboard navigation work naturally — browsers handle most of this
-  // We only intercept Enter/Backspace at page boundaries
-  $(id).addEventListener('keydown', e => editorKeydown(e, id.slice(-1)));
+/* ── EDITOR KEYBOARD HANDLING ─────────────────────── */
+['ed-L', 'ed-R'].forEach(id => {
+  $(id).addEventListener('keydown', e => edKeydown(e, id.slice(-1)));
 });
 
-/* ── SMART EDITOR KEYDOWN ─────────────────────────── */
-function editorKeydown(e, side) {
-  const ed = $('ed-' + side);
+function edKeydown(e, side) {
+  const ed  = $('ed-' + side);
   const sel = window.getSelection();
   if (!sel.rangeCount) return;
-  const range = sel.getRangeAt(0);
+  const rng = sel.getRangeAt(0);
 
-  // Tab / Shift+Tab → page flip (if not in a list item)
-  const inList = range.commonAncestorContainer.nodeType !== Node.ELEMENT_NODE
-    ? range.commonAncestorContainer.parentElement.closest('li,ul,ol')
-    : range.commonAncestorContainer.closest('li,ul,ol');
-
-  if (e.key === 'Tab' && !inList) {
+  // ── Tab / Shift+Tab ──
+  const inList = closestList(rng.commonAncestorContainer);
+  if (e.key === 'Tab') {
     e.preventDefault();
-    if (e.shiftKey) {
-      $('nav-prev').click();
+    if (inList) {
+      document.execCommand(e.shiftKey ? 'outdent' : 'indent');
     } else {
-      $('nav-next').click();
+      e.shiftKey ? $('nav-prev').click() : $('nav-next').click();
     }
     return;
   }
 
-  // Indent with Tab inside lists
-  if (e.key === 'Tab' && inList) {
-    e.preventDefault();
-    document.execCommand(e.shiftKey ? 'outdent' : 'indent');
-    return;
+  // ── Arrow cross-page ──
+  if (side === 'L' && (e.key === 'ArrowRight' || e.key === 'ArrowDown')) {
+    if (atEnd(ed, rng) && pages[spread + 1]) {
+      e.preventDefault(); focusStart($('ed-R')); return;
+    }
   }
+  if (side === 'R' && (e.key === 'ArrowLeft' || e.key === 'ArrowUp')) {
+    if (atStart(ed, rng) && pages[spread]) {
+      e.preventDefault(); focusEnd($('ed-L')); return;
+    }
+  }
+}
 
-  // ArrowRight / ArrowDown at end of page → jump to next page
-  if ((e.key === 'ArrowRight' || e.key === 'ArrowDown') && side === 'L') {
-    // Check if caret is at end of editor
-    const tmp = range.cloneRange();
-    tmp.selectNodeContents(ed);
-    tmp.collapse(false);
-    if (range.compareBoundaryPoints(Range.END_TO_END, tmp) >= 0) {
-      e.preventDefault();
-      const edR = $('ed-R');
-      if (pages[spread + 1]) { focusStart(edR); }
-      return;
-    }
-  }
-  if ((e.key === 'ArrowLeft' || e.key === 'ArrowUp') && side === 'R') {
-    const tmp = range.cloneRange();
-    tmp.selectNodeContents(ed);
-    tmp.collapse(true);
-    if (range.compareBoundaryPoints(Range.START_TO_START, tmp) <= 0) {
-      e.preventDefault();
-      const edL = $('ed-L');
-      if (pages[spread]) { focusEnd(edL); }
-      return;
-    }
-  }
-
-  // Backspace at start of right page → jump to end of left
-  if (e.key === 'Backspace' && side === 'R') {
-    const tmp = range.cloneRange();
-    tmp.selectNodeContents(ed);
-    tmp.collapse(true);
-    if (range.compareBoundaryPoints(Range.START_TO_START, tmp) <= 0 && ed.textContent === '') {
-      e.preventDefault();
-      focusEnd($('ed-L'));
-      return;
-    }
-  }
+function closestList(node) {
+  let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+  while (el) { if (['LI','UL','OL'].includes(el.tagName)) return el; el = el.parentElement; }
+  return null;
+}
+function atEnd(ed, rng) {
+  const tmp = rng.cloneRange(); tmp.selectNodeContents(ed); tmp.collapse(false);
+  return rng.compareBoundaryPoints(Range.END_TO_END, tmp) >= 0;
+}
+function atStart(ed, rng) {
+  const tmp = rng.cloneRange(); tmp.selectNodeContents(ed); tmp.collapse(true);
+  return rng.compareBoundaryPoints(Range.START_TO_START, tmp) <= 0;
 }
 
 function focusStart(el) {
   el.focus();
   try {
     const r = document.createRange(), s = window.getSelection();
-    r.setStart(el, 0); r.collapse(true);
-    s.removeAllRanges(); s.addRange(r);
+    r.setStart(el, 0); r.collapse(true); s.removeAllRanges(); s.addRange(r);
   } catch(_){}
 }
 function focusEnd(el) {
   el.focus();
   try {
     const r = document.createRange(), s = window.getSelection();
-    r.selectNodeContents(el); r.collapse(false);
-    s.removeAllRanges(); s.addRange(r);
+    r.selectNodeContents(el); r.collapse(false); s.removeAllRanges(); s.addRange(r);
   } catch(_){}
 }
 
-/* ── PAGE OVERFLOW DETECTION ─────────────────────── */
-// Uses a hidden measurement div to detect overflow without scroll
-function checkOverflow(side) {
-  setTimeout(() => {
-    const ed   = $('ed-' + side);
-    const body = ed.parentElement;   // .pg-body
-    // scrollHeight > offsetHeight means content overflows
-    if (ed.scrollHeight <= body.offsetHeight) return;
-
-    // Find and detach the last block-level node
-    let last = ed.lastElementChild;
-    if (!last) {
-      // Only text nodes — take the last text node
-      const nodes = Array.from(ed.childNodes);
-      if (!nodes.length) return;
-      last = nodes[nodes.length - 1];
-    }
-    // Capture carried content
-    let carry = '';
-    if (last.nodeType === Node.ELEMENT_NODE) {
-      carry = last.outerHTML; last.remove();
-    } else {
-      carry = last.textContent; last.remove();
-    }
-    // Save trimmed page
-    const idx = side === 'L' ? spread : spread + 1;
-    if (pages[idx]) pages[idx].content = ed.innerHTML;
-
-    if (side === 'L') {
-      // Carry to right page
-      const rIdx = spread + 1;
-      if (rIdx < pages.length) {
-        pages[rIdx].content = carry + (pages[rIdx].content || '');
-        $('ed-R').innerHTML = pages[rIdx].content;
-        focusStart($('ed-R'));
-      } else {
-        addPage(spread, topicOf(spread)?.id, carry);
-        navigateTo(spread + 2, 'fwd');
-        setTimeout(() => focusStart($('ed-L')), 80);
-      }
-    } else {
-      // Carry to next spread's left page
-      const nIdx = spread + 2;
-      if (nIdx < pages.length) {
-        pages[nIdx].content = carry + (pages[nIdx].content || '');
-        navigateTo(spread + 2, 'fwd');
-        setTimeout(() => focusStart($('ed-L')), 80);
-      } else {
-        addPage(spread + 1, topicOf(spread + 1)?.id, carry);
-        navigateTo(spread + 2, 'fwd');
-        setTimeout(() => focusStart($('ed-L')), 80);
-      }
-    }
-  }, 0);
+/* ── PAGE OVERFLOW ────────────────────────────────── */
+let overflowTimer = null;
+function scheduleOverflowCheck(side) {
+  clearTimeout(overflowTimer);
+  overflowTimer = setTimeout(() => checkOverflow(side), 10);
 }
 
-function addPage(afterIdx, topicId, initialContent) {
-  pages.splice(afterIdx + 1, 0, {
-    id: nPid++, topicId: topicId || null,
-    content: initialContent || '',
-    fcNodes: [], fcEdges: []
-  });
+function checkOverflow(side) {
+  const ed   = $('ed-' + side);
+  const body = ed.parentElement;
+  if (ed.scrollHeight <= body.offsetHeight + 2) return;  // +2 px tolerance
+
+  // Detach the last block node
+  let last = ed.lastElementChild || ed.lastChild;
+  if (!last || (ed.childNodes.length === 1 && ed.textContent === '')) return;
+
+  let carry = '';
+  if (last.nodeType === Node.ELEMENT_NODE) { carry = last.outerHTML; last.remove(); }
+  else { carry = last.textContent; last.remove(); }
+
+  const idx = side === 'L' ? spread : spread + 1;
+  if (pages[idx]) pages[idx].content = ed.innerHTML;
+
+  if (side === 'L') {
+    // Push carry to right page
+    ensurePage(spread + 1, pages[spread]?.topicId);
+    pages[spread + 1].content = carry + (pages[spread + 1].content || '');
+    $('ed-R').innerHTML = pages[spread + 1].content;
+    $('wrap-R').style.opacity = '1';
+    updatePageHeader('R');
+    focusStart($('ed-R'));
+  } else {
+    // Push carry to next spread's left page
+    ensurePage(spread + 2, pages[spread + 1]?.topicId);
+    pages[spread + 2].content = carry + (pages[spread + 2].content || '');
+    saveContent();
+    navigateTo(spread + 2, 'fwd');
+    setTimeout(() => focusStart($('ed-L')), 60);
+  }
+}
+
+function ensurePage(idx, topicId) {
+  while (pages.length <= idx) {
+    pages.push({ id: nPid++, topicId: topicId || null, content: '', fcNodes: [], fcEdges: [] });
+  }
+}
+
+function updatePageHeader(side) {
+  const i = side === 'L' ? spread : spread + 1;
+  const pg = pages[i];
+  if (!pg) return;
+  $('num-' + side).textContent = 'p.' + (i + 1);
+  const t = topicOf(i);
+  $('lbl-' + side).textContent   = t ? t.name : '';
+  $('title-' + side).textContent = t ? t.name : '';
 }
 
 /* ── TOPIC MODAL ─────────────────────────────────── */
@@ -333,7 +293,6 @@ function closeModal() { $('modal-wrap').classList.remove('show'); }
 $('m-cancel').addEventListener('click', closeModal);
 $('modal-wrap').addEventListener('click', e => { if (e.target === $('modal-wrap')) closeModal(); });
 $('m-topic-name').addEventListener('keydown', e => { if (e.key === 'Enter') $('m-confirm').click(); });
-
 $('m-confirm').addEventListener('click', () => {
   const name = $('m-topic-name').value.trim();
   if (!name) { $('m-topic-name').focus(); return; }
@@ -347,407 +306,372 @@ function createTopic(name) {
   topics.push(topic);
   // Align to even index
   if (pages.length % 2 !== 0) {
-    const prev = pages.length ? pages[pages.length - 1] : null;
+    const prev = pages[pages.length - 1];
     pages.push({ id: nPid++, topicId: prev?.topicId || null, content: '', fcNodes: [], fcEdges: [] });
   }
   const startIdx = pages.length;
   pages.push({ id: nPid++, topicId: topic.id, content: '', fcNodes: [], fcEdges: [] });
   pages.push({ id: nPid++, topicId: topic.id, content: '', fcNodes: [], fcEdges: [] });
   navigateTo(startIdx, 'fwd');
-  setTimeout(() => { $('ed-L').focus(); }, 120);
+  setTimeout(() => $('ed-L').focus(), 120);
 }
 
 $('sb-add-btn').addEventListener('click', openModal);
 $('new-topic-top').addEventListener('click', openModal);
 
 /* ── PAGE NAVIGATION ─────────────────────────────── */
-function goFwd() {
-  if (spread + 2 < pages.length) { saveContent(); navigateTo(spread + 2, 'fwd'); }
-}
-function goBk() {
+$('nav-prev').addEventListener('click', () => {
   if (spread > 0) { saveContent(); navigateTo(spread - 2, 'bk'); }
-}
-$('nav-prev').addEventListener('click', goBk);
-$('nav-next').addEventListener('click', goFwd);
+});
+$('nav-next').addEventListener('click', () => {
+  saveContent(); navigateTo(spread + 2, 'fwd');
+});
 
-/* ── SIDEBAR TOGGLE ──────────────────────────────── */
+/* Add blank page button (+ under right arrow) */
+$('add-page-btn').addEventListener('click', () => {
+  saveContent();
+  // Insert two blank pages at current spread+2 position
+  const tid = topicOf(spread + 1)?.id || topicOf(spread)?.id || null;
+  const insertAt = spread + 2;
+  pages.splice(insertAt, 0,
+    { id: nPid++, topicId: tid, content: '', fcNodes: [], fcEdges: [] },
+    { id: nPid++, topicId: tid, content: '', fcNodes: [], fcEdges: [] }
+  );
+  navigateTo(insertAt, 'fwd');
+});
+
 $('sb-toggle').addEventListener('click', () => {
   sbOpen = !sbOpen;
   $('sidebar').classList.toggle('closed', !sbOpen);
 });
 
-/* ══════════════════════════════════════════════════
-   TOOLBAR (embedded in each page footer)
-   Both pages share identical toolbar DOM — we clone
-   behaviour using data attributes.
-══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
+   UNIFIED TOOLBAR
+═══════════════════════════════════════════════════ */
 
-// Build toolbars dynamically after DOM ready
-function buildToolbar(side) {
-  const bar = $('pg-toolbar-' + side);
-  // Text group buttons target the editor on the same side
-  bar.querySelectorAll('[data-cmd]').forEach(btn => {
-    btn.addEventListener('mousedown', e => {
-      e.preventDefault();
-      activateEditor(side);
-      const c = btn.dataset.cmd;
-      if (c === 'hiliteColor') {
-        document.execCommand('hiliteColor', false, 'rgba(170,164,255,0.25)');
-      } else {
-        document.execCommand(c, false, null);
-      }
-      updateFormatState(side);
-    });
-  });
+// The toolbar targets whichever editor was last focused
+let activeEditor = $('ed-L');
 
-  // Font select
-  const fnt = bar.querySelector('.fnt-sel');
-  if (fnt) fnt.addEventListener('change', function() {
-    activateEditor(side);
-    document.execCommand('fontName', false, this.value);
-  });
+['ed-L', 'ed-R'].forEach(id => {
+  $(id).addEventListener('focus', () => { activeEditor = $(id); });
+  // Update format-state buttons on every click inside editor
+  $(id).addEventListener('mouseup', updateFmtState);
+  $(id).addEventListener('keyup',   updateFmtState);
+});
 
-  // Size select
-  const sz = bar.querySelector('.sz-sel');
-  if (sz) sz.addEventListener('change', function() {
-    activateEditor(side);
-    document.execCommand('fontSize', false, 7);
-    const ed = $('ed-' + side);
-    ed.querySelectorAll('font[size="7"]').forEach(el => {
-      el.removeAttribute('size');
-      el.style.fontSize = this.value;
-    });
-  });
-
-  // Colour
-  const csw = bar.querySelector('.col-sw');
-  const cinp = bar.querySelector('.col-inp');
-  const cbar = bar.querySelector('.col-bar');
-  if (csw && cinp) {
-    csw.addEventListener('click', () => cinp.click());
-    cinp.addEventListener('input', function() {
-      cbar.style.background = this.value;
-      activateEditor(side);
-      document.execCommand('foreColor', false, this.value);
-    });
-  }
-
-  // Heading dropdown
-  const hdBtn  = bar.querySelector('.hd-btn');
-  const hdDrop = bar.querySelector('.hd-drop');
-  if (hdBtn && hdDrop) {
-    hdBtn.addEventListener('mousedown', e => {
-      e.preventDefault(); e.stopPropagation();
-      hdDrop.classList.toggle('open');
-    });
-    hdDrop.querySelectorAll('.hd-opt').forEach(opt => {
-      opt.addEventListener('mousedown', e => {
-        e.preventDefault();
-        activateEditor(side);
-        document.execCommand('formatBlock', false, opt.dataset.tag === 'p' ? 'P' : opt.dataset.tag.toUpperCase());
-        hdDrop.classList.remove('open');
-        setTimeout(() => liveInput(side), 30);
-      });
-    });
-  }
-
-  // Link
-  const lnkBtn = bar.querySelector('.lnk-btn');
-  if (lnkBtn) {
-    lnkBtn.addEventListener('mousedown', e => {
-      e.preventDefault();
-      activateEditor(side);
-      const sel = window.getSelection();
-      if (sel.rangeCount) savedRange = sel.getRangeAt(0).cloneRange();
-      const r = lnkBtn.getBoundingClientRect();
-      $('link-pop').style.left = r.left + 'px';
-      $('link-pop').style.top  = (r.top - 116) + 'px';
-      $('link-pop').classList.toggle('show');
-      if ($('link-pop').classList.contains('show')) {
-        $('lnk-url').value = '';
-        setTimeout(() => $('lnk-url').focus(), 40);
-      }
-    });
-  }
-
-  // Image
-  const imgBtn = bar.querySelector('.img-btn');
-  const imgInp = bar.querySelector('.img-inp');
-  if (imgBtn && imgInp) {
-    imgBtn.addEventListener('click', () => imgInp.click());
-    imgInp.addEventListener('change', function() {
-      const f = this.files[0]; if (!f) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        activateEditor(side);
-        document.execCommand('insertHTML', false, `<img src="${ev.target.result}" alt=""/>`);
-      };
-      reader.readAsDataURL(f); this.value = '';
-    });
-  }
-
-  // FC toggle button
-  const fcBtn = bar.querySelector('.fc-toggle-btn');
-  if (fcBtn) {
-    fcBtn.addEventListener('click', () => toggleFcMode(side));
-  }
-
-  // FC tool buttons
-  bar.querySelectorAll('[data-fc]').forEach(btn => {
-    btn.addEventListener('click', () => fcToolAction(btn.dataset.fc, side));
-  });
-}
-
-function activateEditor(side) {
-  const ed = $('ed-' + side);
-  activeEditor = ed;
-  if (document.activeElement !== ed) {
-    ed.focus();
-    if (savedRange) {
-      try {
-        const s = window.getSelection();
-        s.removeAllRanges(); s.addRange(savedRange);
-      } catch(_){}
-    }
-  }
-}
-
-function updateFormatState(side) {
-  const bar = $('pg-toolbar-' + side);
-  if (!bar) return;
+function updateFmtState() {
   ['bold','italic','underline','strikeThrough'].forEach(c => {
-    const b = bar.querySelector(`[data-cmd="${c}"]`);
+    const b = document.querySelector(`[data-cmd="${c}"]`);
     if (b) b.classList.toggle('on', document.queryCommandState(c));
   });
 }
+document.addEventListener('selectionchange', updateFmtState);
 
-document.addEventListener('selectionchange', () => {
-  ['L','R'].forEach(s => updateFormatState(s));
+function ensureEditorFocused() {
+  if (document.activeElement !== activeEditor &&
+      !document.activeElement.closest('#unified-toolbar')) {
+    activeEditor.focus();
+  }
+}
+
+// Format buttons
+document.querySelectorAll('[data-cmd]').forEach(btn => {
+  btn.addEventListener('mousedown', e => {
+    e.preventDefault();
+    ensureEditorFocused();
+    const c = btn.dataset.cmd;
+    if (c === 'hiliteColor') {
+      document.execCommand('hiliteColor', false, 'rgba(170,164,255,0.25)');
+    } else {
+      document.execCommand(c, false, null);
+    }
+    updateFmtState();
+  });
 });
 
-/* ── LINK POPOVER ─────────────────────────────────── */
+// Font select
+$('fnt-sel').addEventListener('change', function() {
+  ensureEditorFocused(); document.execCommand('fontName', false, this.value);
+});
+
+// Size select
+$('sz-sel').addEventListener('change', function() {
+  ensureEditorFocused();
+  document.execCommand('fontSize', false, 7);
+  activeEditor.querySelectorAll('font[size="7"]').forEach(el => {
+    el.removeAttribute('size'); el.style.fontSize = this.value;
+  });
+});
+
+// Colour
+$('col-btn').addEventListener('click', () => $('col-inp').click());
+$('col-inp').addEventListener('input', function() {
+  $('col-bar').style.background = this.value;
+  ensureEditorFocused();
+  document.execCommand('foreColor', false, this.value);
+});
+
+// Highlight
+$('hl-btn').addEventListener('mousedown', e => {
+  e.preventDefault(); ensureEditorFocused();
+  document.execCommand('hiliteColor', false, 'rgba(170,164,255,0.25)');
+});
+
+// Image
+$('img-btn').addEventListener('click', () => $('img-inp').click());
+$('img-inp').addEventListener('change', function() {
+  const f = this.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = ev => { ensureEditorFocused(); document.execCommand('insertHTML', false, `<img src="${ev.target.result}" alt=""/>`); };
+  r.readAsDataURL(f); this.value = '';
+});
+
+// Heading dropdown
+const hdBtn  = $('hd-btn');
+const hdDrop = $('hd-drop');
+hdBtn.addEventListener('mousedown', e => { e.preventDefault(); hdDrop.classList.toggle('open'); });
+hdDrop.querySelectorAll('.hd-opt').forEach(opt => {
+  opt.addEventListener('mousedown', e => {
+    e.preventDefault(); ensureEditorFocused();
+    document.execCommand('formatBlock', false, opt.dataset.tag === 'p' ? 'P' : opt.dataset.tag.toUpperCase());
+    hdDrop.classList.remove('open');
+    setTimeout(() => {
+      // Trigger sidebar heading update
+      const s = activeEditor.id === 'ed-L' ? 'L' : 'R';
+      liveInput(s);
+    }, 30);
+  });
+});
+
+// Link popover
 let savedRange = null;
+$('lnk-btn').addEventListener('mousedown', e => {
+  e.preventDefault();
+  ensureEditorFocused();
+  const sel = window.getSelection();
+  if (sel.rangeCount) savedRange = sel.getRangeAt(0).cloneRange();
+  const r = $('lnk-btn').getBoundingClientRect();
+  $('link-pop').style.left = r.left + 'px';
+  $('link-pop').style.top  = (r.top - 120) + 'px';
+  $('link-pop').classList.toggle('show');
+  if ($('link-pop').classList.contains('show')) {
+    $('lnk-url').value = '';
+    setTimeout(() => $('lnk-url').focus(), 40);
+  }
+});
 $('lnk-cancel').addEventListener('click', () => $('link-pop').classList.remove('show'));
 $('lnk-apply').addEventListener('click', () => {
   const url = $('lnk-url').value;
   if (url && savedRange) {
-    const sel = window.getSelection();
-    sel.removeAllRanges(); sel.addRange(savedRange);
+    const s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange);
     document.execCommand('createLink', false, url);
     document.querySelectorAll('.page-ed a').forEach(a => a.target = '_blank');
   }
   $('link-pop').classList.remove('show');
 });
 document.addEventListener('click', e => {
-  const lp = $('link-pop');
-  if (!lp.contains(e.target) && !e.target.closest('.lnk-btn')) lp.classList.remove('show');
-  // Close heading dropdowns
-  document.querySelectorAll('.hd-drop.open').forEach(d => {
-    if (!d.contains(e.target) && !e.target.closest('.hd-btn')) d.classList.remove('open');
-  });
+  if (!$('link-pop').contains(e.target) && !e.target.closest('#lnk-btn'))
+    $('link-pop').classList.remove('show');
+  if (!hdDrop.contains(e.target) && e.target !== hdBtn)
+    hdDrop.classList.remove('open');
 });
 
-/* ══════════════════════════════════════════════════
-   FLOWCHART — embedded on page
-══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
+   FLOWCHART ENGINE
+   Nodes live on the .fc-overlay layer above the text.
+   Each page stores fcNodes[] + fcEdges[] independently.
+═══════════════════════════════════════════════════ */
+let fcMode   = false;
+let fcSide   = null;   // 'L' | 'R'
 
-// Each page object stores fcNodes[] and fcEdges[]
-// We render them on the .fc-overlay layer above the text
-
-let fcState = {
-  side:        null,
-  connecting:  false,
-  connSrc:     null,
-  selected:    null,
-  dragging:    null,
-  dragOX: 0, dragOY: 0,
-  resizing:    null,
-  resizeDir:   null,
-  resizeOX: 0, resizeOY: 0,
-  resizeW0: 0, resizeH0: 0,
+let fc = {
+  selected:  null,
+  connMode:  false,
+  connSrc:   null,
+  dragging:  null,  // { node, ox, oy, side }
+  resizing:  null,  // { node, dir, ox, oy, w0, h0, x0, y0, side }
 };
 
-function toggleFcMode(side) {
-  if (fcMode && fcSide === side) {
-    exitFcMode();
-  } else {
-    if (fcMode) exitFcMode();
+// ── Toolbar FC toggle button ──
+$('fc-btn').addEventListener('click', () => {
+  if (fcMode) exitFcMode();
+  else {
+    // Enter FC mode on the side whose editor is active
+    const side = (activeEditor === $('ed-R')) ? 'R' : 'L';
     enterFcMode(side);
   }
-}
+});
 
 function enterFcMode(side) {
   fcMode = true; fcSide = side;
-  // Switch toolbar to FC mode for this side
-  const bar = $('pg-toolbar-' + side);
-  bar.querySelector('.tb-text-group').classList.add('hide');
-  bar.querySelector('.tb-fc-group').classList.add('show');
-  const fcBtn = bar.querySelector('.fc-toggle-btn');
-  if (fcBtn) fcBtn.classList.add('on');
-  // Enable pointer events on overlay
-  const ov = $('fc-ov-' + side);
-  ov.classList.add('active');
+  $('tb-text').classList.add('hide');
+  $('tb-fc').classList.add('show');
+  $('fc-btn').classList.add('on');
+  $('fc-mode-badge').classList.add('show');
+  $('fc-ov-' + side).classList.add('active');
 }
-
 function exitFcMode() {
   if (!fcMode) return;
-  const side = fcSide;
+  const s = fcSide;
   fcMode = false; fcSide = null;
-  fcState.connecting = false; fcState.connSrc = null; fcState.selected = null;
-  if (!side) return;
-  const bar = $('pg-toolbar-' + side);
-  if (!bar) return;
-  bar.querySelector('.tb-text-group').classList.remove('hide');
-  bar.querySelector('.tb-fc-group').classList.remove('show');
-  const fcBtn = bar.querySelector('.fc-toggle-btn');
-  if (fcBtn) fcBtn.classList.remove('on');
-  $('fc-ov-' + side).classList.remove('active');
+  fc.connMode = false; fc.connSrc = null; fc.selected = null;
+  $('tb-text').classList.remove('hide');
+  $('tb-fc').classList.remove('show');
+  $('fc-btn').classList.remove('on');
+  $('fc-mode-badge').classList.remove('show');
+  if (s) {
+    $('fc-ov-' + s).classList.remove('active');
+    $('fc-ov-' + s).style.cursor = '';
+  }
 }
 
-function getCurrentPageForSide(side) {
-  const idx = side === 'L' ? spread : spread + 1;
+// ── FC toolbar actions ──
+$('fc-exit').addEventListener('click', exitFcMode);
+$('fc-add-rect').addEventListener('click',   () => addNode('rect'));
+$('fc-add-diam').addEventListener('click',   () => addNode('diamond'));
+$('fc-add-oval').addEventListener('click',   () => addNode('oval'));
+$('fc-add-para').addEventListener('click',   () => addNode('parallelogram'));
+$('fc-connect').addEventListener('click',    toggleConnectMode);
+$('fc-del').addEventListener('click',        deleteSelected);
+$('fc-clear').addEventListener('click',      clearAll);
+
+function getCurrentPg(side) {
+  const idx = (side || fcSide) === 'L' ? spread : spread + 1;
   return pages[idx] || null;
 }
+function getOv(side) { return $('fc-ov-' + (side || fcSide)); }
 
-function fcToolAction(action, side) {
-  const pg = getCurrentPageForSide(side);
-  if (!pg) return;
+function addNode(shape) {
+  const side = fcSide;
+  let pg = getCurrentPg(side);
+  const ov = getOv(side);
+  if (!pg || !ov) return;
 
-  if (action === 'add-rect')    addFcNode(pg, side, 'rect');
-  if (action === 'add-diamond') addFcNode(pg, side, 'diamond');
-  if (action === 'add-cloud')   addFcNode(pg, side, 'cloud');
-  if (action === 'connect')     startConnect(side);
-  if (action === 'delete')      deleteFcSelected(pg, side);
-  if (action === 'clear')       clearFc(pg, side);
-}
+  // Find lowest occupied Y on this page
+  let maxY = 10;
+  (pg.fcNodes || []).forEach(n => { if (n.y + n.h > maxY) maxY = n.y + n.h; });
+  const ovH = ov.getBoundingClientRect().height;
 
-function addFcNode(pg, side, shape) {
-  // Check if page has room (very rough — place below existing nodes or in free area)
-  const ov = $('fc-ov-' + side);
-  const rect = ov.getBoundingClientRect();
-  const existing = pg.fcNodes;
-
-  // Find lowest node bottom
-  let y = 10;
-  existing.forEach(n => { const b = n.y + n.h; if (b > y) y = b; });
-  // If no room at bottom of page, try next page
-  if (y + 80 > rect.height) {
-    // Add to next page
+  // If no room (within 60px of bottom), add to the other page or a new one
+  if (maxY + 60 > ovH) {
     const altSide = side === 'L' ? 'R' : null;
     if (altSide) {
-      const altPg = getCurrentPageForSide(altSide);
-      if (altPg) { addFcNode(altPg, altSide, shape); return; }
+      const altPg = getCurrentPg(altSide);
+      if (altPg) { addNodeToPg(altPg, shape, altSide); return; }
     }
-    // else just stack anyway
-    y = 10;
+    // Overflow to next spread — ensure pages exist and navigate
+    ensurePage(spread + 2, pg.topicId);
+    const nextSide = 'L';
+    const nextPg   = pages[spread + 2];
+    saveContent(); navigateTo(spread + 2, 'fwd');
+    setTimeout(() => { enterFcMode(nextSide); addNodeToPg(nextPg, nextSide === 'L' ? pages[spread] : pages[spread+1], shape, nextSide); }, 120);
+    return;
   }
 
+  addNodeToPg(pg, shape, side);
+}
+
+function addNodeToPg(pg, shape, side) {
+  if (!pg.fcNodes) pg.fcNodes = [];
+  if (!pg.fcEdges) pg.fcEdges = [];
+  const ov  = getOv(side);
+  const ovR = ov.getBoundingClientRect();
+  let maxY  = 10;
+  pg.fcNodes.forEach(n => { if (n.y + n.h > maxY) maxY = n.y + n.h; });
+
+  const w = shape === 'diamond' ? 110 : shape === 'oval' || shape === 'parallelogram' ? 130 : 120;
+  const h = shape === 'diamond' ? 70  : 44;
   const node = {
-    id: nPid++,
-    x: 20 + Math.random() * 60,
-    y: Math.max(10, y + 8),
-    w: 120, h: 48,
-    shape, text: 'Text'
+    id: nPid++, shape,
+    x: Math.max(10, (ovR.width - w) / 2 + (Math.random() - .5) * 40),
+    y: maxY + 10, w, h,
+    text: shape === 'diamond' ? 'Decision?' : shape === 'oval' ? 'Start/End' : 'Text'
   };
   pg.fcNodes.push(node);
-  renderFcOverlay(side, pg);
-  // Select new node
-  fcState.selected = node.id;
+  fc.selected = node.id;
   renderFcOverlay(side, pg);
 }
 
-function startConnect(side) {
-  fcState.connecting = true; fcState.connSrc = null;
-  // Visual feedback via cursor on overlay
-  const ov = $('fc-ov-' + side);
-  ov.style.cursor = 'crosshair';
+function toggleConnectMode() {
+  fc.connMode = !fc.connMode;
+  fc.connSrc  = null;
+  $('fc-connect').classList.toggle('on', fc.connMode);
+  const ov = getOv();
+  if (ov) ov.style.cursor = fc.connMode ? 'crosshair' : '';
 }
 
-function deleteFcSelected(pg, side) {
-  if (!fcState.selected) return;
-  pg.fcNodes = pg.fcNodes.filter(n => n.id !== fcState.selected);
-  pg.fcEdges = pg.fcEdges.filter(e => e.from !== fcState.selected && e.to !== fcState.selected);
-  fcState.selected = null;
-  renderFcOverlay(side, pg);
+function deleteSelected() {
+  const pg = getCurrentPg();
+  if (!pg || !fc.selected) return;
+  pg.fcNodes = pg.fcNodes.filter(n => n.id !== fc.selected);
+  pg.fcEdges = pg.fcEdges.filter(e => e.from !== fc.selected && e.to !== fc.selected);
+  fc.selected = null;
+  renderFcOverlay(fcSide, pg);
 }
 
-function clearFc(pg, side) {
-  pg.fcNodes = []; pg.fcEdges = [];
-  fcState.selected = null;
-  renderFcOverlay(side, pg);
+function clearAll() {
+  const pg = getCurrentPg();
+  if (!pg) return;
+  pg.fcNodes = []; pg.fcEdges = []; fc.selected = null;
+  renderFcOverlay(fcSide, pg);
 }
 
-/* ── FC OVERLAY RENDER ───────────────────────────── */
+/* ── RENDER FC OVERLAY ────────────────────────────── */
 function renderFcOverlay(side, pg) {
   const ov = $('fc-ov-' + side);
   if (!ov || !pg) return;
-  // Remove old nodes
-  ov.querySelectorAll('.fc-node,.resize-handle').forEach(e => e.remove());
+  ov.querySelectorAll('.fc-node,.rh,.edge-label').forEach(e => e.remove());
   const svgEl = ov.querySelector('svg');
-  svgEl.querySelectorAll('path,line').forEach(e => e.remove());
+  svgEl.querySelectorAll('path,marker:not(#fc-arr)').forEach(e => e.remove());
 
-  if (!pg.fcNodes || !pg.fcNodes.length) return;
+  if (!pg.fcNodes?.length) return;
 
   // Draw edges
   (pg.fcEdges || []).forEach(edge => {
-    const a = pg.fcNodes.find(n => n.id === edge.from);
-    const b = pg.fcNodes.find(n => n.id === edge.to);
-    if (!a || !b) return;
-    const x1 = a.x + a.w / 2, y1 = a.y + a.h / 2;
-    const x2 = b.x + b.w / 2, y2 = b.y + b.h / 2;
-    const mx = (x1 + x2) / 2;
-    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-    path.setAttribute('d', `M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
-    path.setAttribute('stroke', 'rgba(170,164,255,0.6)');
-    path.setAttribute('stroke-width', '1.6');
-    path.setAttribute('fill', 'none');
-    path.setAttribute('stroke-dasharray', edge.style === 'dashed' ? '5 3' : 'none');
-    path.setAttribute('marker-end', 'url(#fc-arr)');
-    svgEl.appendChild(path);
+    drawEdge(svgEl, pg, edge);
   });
 
   // Draw nodes
   pg.fcNodes.forEach(node => {
     const el = document.createElement('div');
-    el.className = 'fc-node' +
-      (node.shape === 'cloud'   ? ' cloud'    : '') +
-      (node.shape === 'diamond' ? ' diamond'  : '') +
-      (fcState.selected === node.id ? ' sel' : '') +
-      (fcState.connSrc  === node.id ? ' conn-src' : '');
-    el.style.left   = node.x + 'px';
-    el.style.top    = node.y + 'px';
-    el.style.width  = node.w + 'px';
-    el.style.height = node.h + 'px';
-    el.textContent  = node.text;
+    const inner = document.createElement('div');
+    inner.className = 'fc-node-inner';
+    inner.textContent = node.text;
+
+    el.className = ['fc-node', node.shape,
+      fc.selected === node.id ? 'sel'      : '',
+      fc.connSrc  === node.id ? 'conn-src' : ''].filter(Boolean).join(' ');
+
+    el.style.cssText = `left:${node.x}px;top:${node.y}px;width:${node.w}px;height:${node.h}px`;
     el.dataset.nid  = node.id;
     el.dataset.side = side;
 
-    // Drag
+    if (node.shape === 'parallelogram') {
+      el.appendChild(inner);
+    } else {
+      el.textContent = node.text;
+    }
+
+    // ── Events ──
     el.addEventListener('mousedown', e => {
-      if (e.target.classList.contains('resize-handle')) return;
       if (e.target.contentEditable === 'true') return;
-      if (fcState.connecting) {
-        e.stopPropagation();
+      e.stopPropagation();
+
+      if (fc.connMode) {
         handleConnectClick(pg, side, node.id);
         return;
       }
-      e.stopPropagation();
-      fcState.selected = node.id;
-      fcState.dragging = node;
-      const ovr = $('fc-ov-' + side).getBoundingClientRect();
-      fcState.dragOX = e.clientX - ovr.left - node.x;
-      fcState.dragOY = e.clientY - ovr.top  - node.y;
+      fc.selected = node.id;
+      const ovR   = ov.getBoundingClientRect();
+      fc.dragging = { node, side, ox: e.clientX - ovR.left - node.x, oy: e.clientY - ovR.top - node.y };
       renderFcOverlay(side, pg);
     });
 
-    // Double-click to edit
     el.addEventListener('dblclick', e => {
       e.stopPropagation();
       el.contentEditable = 'true'; el.focus();
       const rng = document.createRange();
-      rng.selectNodeContents(el);
-      window.getSelection().removeAllRanges();
-      window.getSelection().addRange(rng);
+      rng.selectNodeContents(el); window.getSelection().removeAllRanges(); window.getSelection().addRange(rng);
     });
     el.addEventListener('blur', () => {
       el.contentEditable = 'false';
@@ -756,26 +680,17 @@ function renderFcOverlay(side, pg) {
 
     ov.appendChild(el);
 
-    // Resize handles (only when selected)
-    if (fcState.selected === node.id) {
+    // Resize handles only on selected node
+    if (fc.selected === node.id) {
       ['nw','ne','sw','se'].forEach(dir => {
         const rh = document.createElement('div');
-        rh.className = `resize-handle rh-${dir}`;
-        rh.dataset.dir  = dir;
-        rh.dataset.nid  = node.id;
-        rh.dataset.side = side;
-        rh.style.left = (dir.includes('w') ? node.x - 4 : node.x + node.w - 4) + 'px';
-        rh.style.top  = (dir.includes('n') ? node.y - 4 : node.y + node.h - 4) + 'px';
+        rh.className = 'rh ' + dir;
+        rh.style.cssText =
+          `left:${dir.includes('w') ? node.x-5 : node.x+node.w-4}px;` +
+          `top:${dir.includes('n') ? node.y-5 : node.y+node.h-4}px`;
         rh.addEventListener('mousedown', e => {
           e.stopPropagation();
-          fcState.resizing   = node;
-          fcState.resizeDir  = dir;
-          fcState.resizeOX   = e.clientX;
-          fcState.resizeOY   = e.clientY;
-          fcState.resizeW0   = node.w;
-          fcState.resizeH0   = node.h;
-          fcState.resizeX0   = node.x;
-          fcState.resizeY0   = node.y;
+          fc.resizing = { node, side, dir, ox:e.clientX, oy:e.clientY, w0:node.w, h0:node.h, x0:node.x, y0:node.y };
         });
         ov.appendChild(rh);
       });
@@ -783,15 +698,56 @@ function renderFcOverlay(side, pg) {
   });
 }
 
+function drawEdge(svgEl, pg, edge) {
+  const a = pg.fcNodes.find(n => n.id === edge.from);
+  const b = pg.fcNodes.find(n => n.id === edge.to);
+  if (!a || !b) return;
+
+  // Smart port selection: find the nearest boundary midpoints
+  const ports = (n) => [
+    { x: n.x + n.w/2, y: n.y           },   // top
+    { x: n.x + n.w,   y: n.y + n.h/2   },   // right
+    { x: n.x + n.w/2, y: n.y + n.h     },   // bottom
+    { x: n.x,         y: n.y + n.h/2   },   // left
+  ];
+  const dist = (p, q) => Math.hypot(p.x - q.x, p.y - q.y);
+  let best = { d: Infinity, p: null, q: null };
+  ports(a).forEach(p => ports(b).forEach(q => {
+    const d = dist(p, q); if (d < best.d) best = { d, p, q };
+  }));
+
+  const { p: p1, q: p2 } = best;
+  const mx = (p1.x + p2.x) / 2, my = (p1.y + p2.y) / 2;
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  // Orthogonal-style bezier
+  path.setAttribute('d', `M${p1.x},${p1.y} C${p1.x},${my} ${p2.x},${my} ${p2.x},${p2.y}`);
+  path.setAttribute('stroke', edge.style === 'dashed' ? 'rgba(0,210,255,0.55)' : 'rgba(170,164,255,0.6)');
+  path.setAttribute('stroke-width', '1.8');
+  path.setAttribute('fill', 'none');
+  if (edge.style === 'dashed') path.setAttribute('stroke-dasharray', '5 3');
+  path.setAttribute('marker-end', 'url(#fc-arr)');
+  svgEl.appendChild(path);
+
+  // Edge label
+  if (edge.label) {
+    const lbl = document.createElement('div');
+    lbl.className = 'edge-label';
+    lbl.style.left = (mx - 20) + 'px';
+    lbl.style.top  = (my - 9)  + 'px';
+    lbl.textContent = edge.label;
+    svgEl.parentElement.appendChild(lbl);
+  }
+}
+
 function handleConnectClick(pg, side, nodeId) {
-  if (!fcState.connSrc) {
-    fcState.connSrc = nodeId;
+  if (!fc.connSrc) {
+    fc.connSrc = nodeId;
     renderFcOverlay(side, pg);
-  } else if (fcState.connSrc !== nodeId) {
-    pg.fcEdges.push({ from: fcState.connSrc, to: nodeId, style: 'solid' });
-    fcState.connSrc = null; fcState.connecting = false;
-    const ov = $('fc-ov-' + side);
-    ov.style.cursor = '';
+  } else if (fc.connSrc !== nodeId) {
+    pg.fcEdges.push({ from: fc.connSrc, to: nodeId, style: 'solid' });
+    fc.connSrc = null; fc.connMode = false;
+    $('fc-connect').classList.remove('on');
+    getOv(side).style.cursor = '';
     renderFcOverlay(side, pg);
   }
 }
@@ -799,93 +755,67 @@ function handleConnectClick(pg, side, nodeId) {
 function clearFcOverlay(side) {
   const ov = $('fc-ov-' + side);
   if (!ov) return;
-  ov.querySelectorAll('.fc-node,.resize-handle').forEach(e => e.remove());
-  const svgEl = ov.querySelector('svg');
-  if (svgEl) svgEl.querySelectorAll('path,line').forEach(e => e.remove());
+  ov.querySelectorAll('.fc-node,.rh,.edge-label').forEach(e => e.remove());
+  ov.querySelector('svg')?.querySelectorAll('path').forEach(e => e.remove());
 }
 
-// Global mouse move / up for drag + resize
+/* ── DRAG + RESIZE (global) ──────────────────────── */
 document.addEventListener('mousemove', e => {
-  if (fcState.dragging) {
-    const side = fcState.dragging._side || fcSide;
-    const ov   = $('fc-ov-' + side);
-    if (!ov) return;
-    const ovr  = ov.getBoundingClientRect();
-    const node = fcState.dragging;
-    node._side = side;
-    node.x = Math.max(0, e.clientX - ovr.left - fcState.dragOX);
-    node.y = Math.max(0, e.clientY - ovr.top  - fcState.dragOY);
-    // Update position directly without full re-render for smooth drag
+  if (fc.dragging) {
+    const { node, side, ox, oy } = fc.dragging;
+    const ov  = $('fc-ov-' + side);
+    const ovR = ov.getBoundingClientRect();
+    const pg  = getCurrentPg(side);
+    node.x = Math.max(0, Math.min(e.clientX - ovR.left - ox, ovR.width  - node.w));
+    node.y = Math.max(0, Math.min(e.clientY - ovR.top  - oy, ovR.height - node.h));
+    // Move element directly for smooth drag
     const el = ov.querySelector(`[data-nid="${node.id}"]`);
     if (el) { el.style.left = node.x + 'px'; el.style.top = node.y + 'px'; }
-    // Redraw edges
-    const pg = getCurrentPageForSide(side);
+    // Move resize handles
+    ov.querySelectorAll(`.rh[data-nid="${node.id}"]`).forEach(rh => {
+      const d = rh.classList[1];
+      rh.style.left = (d.includes('w') ? node.x-5 : node.x+node.w-4) + 'px';
+      rh.style.top  = (d.includes('n') ? node.y-5 : node.y+node.h-4) + 'px';
+    });
+    // Redraw edges only
     if (pg) {
       const svgEl = ov.querySelector('svg');
-      svgEl.querySelectorAll('path').forEach(e => e.remove());
-      // Quick edge redraw
-      (pg.fcEdges || []).forEach(edge => {
-        const a = pg.fcNodes.find(n => n.id === edge.from);
-        const b = pg.fcNodes.find(n => n.id === edge.to);
-        if (!a || !b) return;
-        const x1=a.x+a.w/2,y1=a.y+a.h/2,x2=b.x+b.w/2,y2=b.y+b.h/2,mx=(x1+x2)/2;
-        const path = document.createElementNS('http://www.w3.org/2000/svg','path');
-        path.setAttribute('d',`M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}`);
-        path.setAttribute('stroke','rgba(170,164,255,0.6)');
-        path.setAttribute('stroke-width','1.6');
-        path.setAttribute('fill','none');
-        path.setAttribute('marker-end','url(#fc-arr)');
-        svgEl.appendChild(path);
-      });
-      // Update resize handle positions
-      ov.querySelectorAll('.resize-handle').forEach(rh => {
-        const dir = rh.dataset.dir;
-        if (rh.dataset.nid == node.id) {
-          rh.style.left = (dir.includes('w') ? node.x-4 : node.x+node.w-4) + 'px';
-          rh.style.top  = (dir.includes('n') ? node.y-4 : node.y+node.h-4) + 'px';
-        }
-      });
+      svgEl.querySelectorAll('path').forEach(p => p.remove());
+      ov.querySelectorAll('.edge-label').forEach(p => p.remove());
+      (pg.fcEdges || []).forEach(edge => drawEdge(svgEl, pg, edge));
     }
   }
 
-  if (fcState.resizing) {
-    const node = fcState.resizing;
-    const side = node._side || fcSide;
-    const dx = e.clientX - fcState.resizeOX;
-    const dy = e.clientY - fcState.resizeOY;
-    const dir = fcState.resizeDir;
-    let nw = fcState.resizeW0, nh = fcState.resizeH0, nx = fcState.resizeX0, ny = fcState.resizeY0;
-    if (dir.includes('e')) nw = Math.max(80, fcState.resizeW0 + dx);
-    if (dir.includes('s')) nh = Math.max(36, fcState.resizeH0 + dy);
-    if (dir.includes('w')) { nw = Math.max(80, fcState.resizeW0 - dx); nx = fcState.resizeX0 + (fcState.resizeW0 - nw); }
-    if (dir.includes('n')) { nh = Math.max(36, fcState.resizeH0 - dy); ny = fcState.resizeY0 + (fcState.resizeH0 - nh); }
+  if (fc.resizing) {
+    const { node, side, dir, ox, oy, w0, h0, x0, y0 } = fc.resizing;
+    const dx = e.clientX - ox, dy = e.clientY - oy;
+    let nw = w0, nh = h0, nx = x0, ny = y0;
+    if (dir.includes('e')) nw = Math.max(80, w0 + dx);
+    if (dir.includes('s')) nh = Math.max(36, h0 + dy);
+    if (dir.includes('w')) { nw = Math.max(80, w0 - dx); nx = x0 + (w0 - nw); }
+    if (dir.includes('n')) { nh = Math.max(36, h0 - dy); ny = y0 + (h0 - nh); }
     node.w = nw; node.h = nh; node.x = nx; node.y = ny;
     const ov = $('fc-ov-' + side);
     const el = ov?.querySelector(`[data-nid="${node.id}"]`);
     if (el) { el.style.width=nw+'px'; el.style.height=nh+'px'; el.style.left=nx+'px'; el.style.top=ny+'px'; }
-    // Update handles
-    ov?.querySelectorAll('.resize-handle').forEach(rh => {
-      if (rh.dataset.nid == node.id) {
-        const d = rh.dataset.dir;
-        rh.style.left = (d.includes('w') ? nx-4 : nx+nw-4) + 'px';
-        rh.style.top  = (d.includes('n') ? ny-4 : ny+nh-4) + 'px';
+    ov?.querySelectorAll(`.rh`).forEach(rh => {
+      const d = rh.classList[1];
+      if (+rh.dataset.nid === node.id) {
+        rh.style.left = (d.includes('w') ? nx-5 : nx+nw-4) + 'px';
+        rh.style.top  = (d.includes('n') ? ny-5 : ny+nh-4) + 'px';
       }
     });
   }
 });
 
 document.addEventListener('mouseup', () => {
-  if (fcState.dragging) {
-    const side = fcState.dragging._side || fcSide;
-    const pg = getCurrentPageForSide(side);
-    if (pg) renderFcOverlay(side, pg);
-    fcState.dragging = null;
+  if (fc.dragging) {
+    const { side } = fc.dragging; fc.dragging = null;
+    const pg = getCurrentPg(side); if (pg) renderFcOverlay(side, pg);
   }
-  if (fcState.resizing) {
-    const side = fcState.resizing._side || fcSide;
-    const pg = getCurrentPageForSide(side);
-    if (pg) renderFcOverlay(side, pg);
-    fcState.resizing = null;
+  if (fc.resizing) {
+    const { side } = fc.resizing; fc.resizing = null;
+    const pg = getCurrentPg(side); if (pg) renderFcOverlay(side, pg);
   }
 });
 
@@ -895,27 +825,22 @@ document.addEventListener('keydown', e => {
     if (e.key === 'b') { e.preventDefault(); document.execCommand('bold'); }
     if (e.key === 'i') { e.preventDefault(); document.execCommand('italic'); }
     if (e.key === 'u') { e.preventDefault(); document.execCommand('underline'); }
-    if (e.key === 'z') { /* browser handles undo */ }
-    if (e.key === 'y') { /* browser handles redo */ }
   }
   if (e.key === 'Escape') {
-    closeModal();
-    exitFcMode();
+    closeModal(); exitFcMode();
     $('link-pop').classList.remove('show');
-    document.querySelectorAll('.hd-drop.open').forEach(d => d.classList.remove('open'));
+    hdDrop.classList.remove('open');
+  }
+  // Delete key removes selected FC node
+  if ((e.key === 'Delete' || e.key === 'Backspace') && fcMode &&
+       !['INPUT','TEXTAREA'].includes(document.activeElement.tagName) &&
+       !document.activeElement.isContentEditable) {
+    deleteSelected();
   }
 });
 
 /* ── INIT ─────────────────────────────────────────── */
-// Build toolbar behaviours
-buildToolbar('L');
-buildToolbar('R');
-
-// Empty initial state
 renderSidebar();
 $('nav-prev').disabled = true;
-$('nav-next').disabled = true;
-
-// Set initial opacity of blank pages
 $('wrap-L').style.opacity = '0.22';
 $('wrap-R').style.opacity = '0.22';

@@ -4,9 +4,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>SimplNotes</title>
-
-  <!-- Playfair Display for elegant serif headings/titles (non-italic) -->
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
   <link rel="stylesheet" href="styles.css"/>
 </head>
@@ -42,14 +40,11 @@
           <span class="mi mi-sm">add_circle</span>Start new topic
         </button>
       </div>
-
       <div class="sb-empty" id="sb-empty">
         <span class="mi">menu_book</span>
         <p>Your notebook is empty.<br>Press <strong>Start new topic</strong> to begin.</p>
       </div>
-
       <div id="topic-list"></div>
-
       <div class="sb-footer">
         <a href="#"><span class="mi">help</span>Help</a>
         <a href="#" class="danger"><span class="mi">logout</span>Logout</a>
@@ -59,249 +54,296 @@
     <!-- STAGE -->
     <main id="stage">
 
-      <!-- Side navigation arrows -->
-      <button class="side-nav" id="nav-prev" title="Previous pages (Shift+Tab)">
-        <span class="mi">chevron_left</span>
-      </button>
-      <button class="side-nav" id="nav-next" title="Next pages (Tab)">
-        <span class="mi">chevron_right</span>
-      </button>
+      <!-- Left nav column: prev arrow only -->
+      <div class="nav-col" id="nav-col-prev">
+        <button class="side-nav" id="nav-prev" title="Previous (Shift+Tab)">
+          <span class="mi">chevron_left</span>
+        </button>
+      </div>
 
-      <!-- Notebook -->
+      <!-- Right nav column: next arrow + add-page button -->
+      <div class="nav-col" id="nav-col-next">
+        <button class="side-nav" id="nav-next" title="Next (Tab)">
+          <span class="mi">chevron_right</span>
+        </button>
+        <button class="add-page-btn" id="add-page-btn" title="Insert blank page here">
+          <span class="mi">add</span>
+        </button>
+      </div>
+
+      <!-- Notebook: page spread + unified toolbar as one block -->
       <div id="notebook">
 
-        <!-- ── LEFT PAGE ── -->
-        <div class="page-wrap left" id="wrap-L">
-          <div class="nb-page" id="pg-L">
+        <!-- Two-page spread row -->
+        <div id="page-spread">
 
-            <div class="pg-head">
-              <span class="pg-topic-lbl" id="lbl-L"></span>
-              <span class="pg-title-display" id="title-L"></span>
-              <span class="pg-num" id="num-L"></span>
-            </div>
-
-            <div class="pg-body">
-              <!-- FC overlay layer -->
-              <div class="fc-overlay" id="fc-ov-L">
-                <svg>
-                  <defs>
-                    <marker id="fc-arr" markerWidth="7" markerHeight="5" refX="6" refY="2.5" orient="auto">
-                      <polygon points="0 0,7 2.5,0 5" fill="rgba(170,164,255,0.65)"/>
-                    </marker>
-                  </defs>
-                </svg>
+          <!-- LEFT PAGE -->
+          <div class="page-wrap left" id="wrap-L">
+            <div class="nb-page" id="pg-L">
+              <div class="pg-head">
+                <span class="pg-topic-lbl" id="lbl-L"></span>
+                <span class="pg-title-display" id="title-L"></span>
+                <span class="pg-num" id="num-L"></span>
               </div>
-              <div class="page-ed" id="ed-L" contenteditable="true" data-ph="Start writing…"></div>
-            </div>
-
-            <!-- ── LEFT TOOLBAR ── -->
-            <div class="pg-toolbar" id="pg-toolbar-L">
-
-              <!-- TEXT GROUP -->
-              <div class="tb-text-group" id="text-grp-L">
-
-                <!-- Font & size -->
-                <select class="tb-sel fnt-sel" title="Font" style="max-width:76px;">
-                  <option value="'DM Sans',sans-serif">DM Sans</option>
-                  <option value="Georgia,serif">Georgia</option>
-                  <option value="'Courier New',monospace">Courier</option>
-                  <option value="'Arial',sans-serif">Arial</option>
-                </select>
-                <select class="tb-sel sz-sel" title="Size" style="max-width:50px;">
-                  <option>11px</option><option>12px</option><option>13px</option>
-                  <option selected>14px</option><option>16px</option><option>18px</option>
-                  <option>20px</option><option>24px</option><option>28px</option>
-                </select>
-
-                <div class="tb-sep"></div>
-
-                <!-- Heading dropdown -->
-                <div class="hd-wrap">
-                  <button class="tb-btn hd-btn" data-tip="Heading style"><span class="mi mi-sm">title</span></button>
-                  <div class="hd-drop">
-                    <button class="hd-opt" data-tag="h1"><span class="hd-preview">H1</span><span class="hd-label">Heading 1</span></button>
-                    <button class="hd-opt" data-tag="h2"><span class="hd-preview">H2</span><span class="hd-label">Heading 2</span></button>
-                    <button class="hd-opt" data-tag="h3"><span class="hd-preview">H3</span><span class="hd-label">Sub-heading</span></button>
-                    <button class="hd-opt" data-tag="p"><span class="hd-preview" style="font-style:normal;font-size:11px;">¶</span><span class="hd-label">Normal</span></button>
-                  </div>
+              <div class="pg-body">
+                <div class="fc-overlay" id="fc-ov-L">
+                  <svg>
+                    <defs>
+                      <marker id="fc-arr" markerWidth="8" markerHeight="6"
+                              refX="7" refY="3" orient="auto">
+                        <polygon points="0 0,8 3,0 6" fill="rgba(170,164,255,0.7)"/>
+                      </marker>
+                    </defs>
+                  </svg>
                 </div>
-
-                <div class="tb-sep"></div>
-
-                <!-- B I U S -->
-                <button class="tb-btn" data-cmd="bold"          data-tip="Bold (Ctrl+B)"      style="font-weight:800;font-size:13px;">B</button>
-                <button class="tb-btn" data-cmd="italic"        data-tip="Italic (Ctrl+I)"    style="font-style:italic;font-size:13px;">I</button>
-                <button class="tb-btn" data-cmd="underline"     data-tip="Underline (Ctrl+U)" style="text-decoration:underline;font-size:13px;">U</button>
-                <button class="tb-btn" data-cmd="strikeThrough" data-tip="Strikethrough"      style="text-decoration:line-through;font-size:12px;">S</button>
-
-                <div class="tb-sep"></div>
-
-                <!-- Align -->
-                <button class="tb-btn" data-cmd="justifyLeft"   data-tip="Left">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="0" width="14" height="1.5" rx=".7"/><rect y="3" width="9" height="1.5" rx=".7"/><rect y="6" width="12" height="1.5" rx=".7"/><rect y="9" width="7" height="1.5" rx=".7"/></svg>
-                </button>
-                <button class="tb-btn" data-cmd="justifyCenter" data-tip="Center">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="0" width="14" height="1.5" rx=".7"/><rect x="2.5" y="3" width="9" height="1.5" rx=".7"/><rect x="1" y="6" width="12" height="1.5" rx=".7"/><rect x="3.5" y="9" width="7" height="1.5" rx=".7"/></svg>
-                </button>
-                <button class="tb-btn" data-cmd="justifyRight"  data-tip="Right">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="0" width="14" height="1.5" rx=".7"/><rect x="5" y="3" width="9" height="1.5" rx=".7"/><rect x="2" y="6" width="12" height="1.5" rx=".7"/><rect x="7" y="9" width="7" height="1.5" rx=".7"/></svg>
-                </button>
-
-                <div class="tb-sep"></div>
-
-                <!-- Lists -->
-                <button class="tb-btn" data-cmd="insertUnorderedList" data-tip="Bullets">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><circle cx="1.2" cy="1.4" r="1.1"/><rect x="4" y=".65" width="10" height="1.5" rx=".7"/><circle cx="1.2" cy="5.5" r="1.1"/><rect x="4" y="4.75" width="10" height="1.5" rx=".7"/><circle cx="1.2" cy="9.6" r="1.1"/><rect x="4" y="8.85" width="10" height="1.5" rx=".7"/></svg>
-                </button>
-                <button class="tb-btn" data-cmd="insertOrderedList" data-tip="Numbers">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><text x="0" y="3" font-size="4" font-family="sans-serif" fill="currentColor">1.</text><rect x="5" y=".65" width="9" height="1.5" rx=".7"/><text x="0" y="7" font-size="4" font-family="sans-serif" fill="currentColor">2.</text><rect x="5" y="4.75" width="9" height="1.5" rx=".7"/><text x="0" y="11" font-size="4" font-family="sans-serif" fill="currentColor">3.</text><rect x="5" y="8.85" width="9" height="1.5" rx=".7"/></svg>
-                </button>
-
-                <div class="tb-sep"></div>
-
-                <!-- Colour + highlight -->
-                <button class="col-sw" data-tip="Text color" title="Text color">
-                  <span class="mi" style="font-size:14px;color:var(--tx-muted)">palette</span>
-                  <div class="col-bar"></div>
-                  <input type="color" class="col-inp" value="#dee5ff"/>
-                </button>
-                <button class="tb-btn" data-cmd="hiliteColor" data-tip="Highlight"><span class="mi mi-sm">format_ink_highlighter</span></button>
-
-                <div class="tb-sep"></div>
-
-                <!-- Link + image -->
-                <button class="tb-btn lnk-btn" data-tip="Link"><span class="mi mi-sm">link</span></button>
-                <button class="tb-btn img-btn" data-tip="Image"><span class="mi mi-sm">image</span></button>
-                <input type="file" class="img-inp" accept="image/*" style="display:none"/>
-
-                <div class="tb-sep"></div>
-
-                <!-- Flowchart toggle (always visible) -->
-                <button class="tb-btn fc-toggle-btn" data-tip="Flowchart mode"><span class="mi mi-sm">account_tree</span></button>
-
-              </div><!-- /text group -->
-
-              <!-- FC GROUP (hidden until FC mode) -->
-              <div class="tb-fc-group" id="fc-grp-L">
-                <button class="tb-btn" data-fc="add-rect"    data-tip="Add block"><span class="mi mi-sm">crop_square</span></button>
-                <button class="tb-btn" data-fc="add-diamond" data-tip="Decision"><span class="mi mi-sm">diamond</span></button>
-                <button class="tb-btn" data-fc="add-cloud"   data-tip="Cloud"><span class="mi mi-sm">blur_on</span></button>
-                <button class="tb-btn" data-fc="connect"     data-tip="Connect nodes"><span class="mi mi-sm">linear_scale</span></button>
-                <div class="tb-sep"></div>
-                <button class="tb-btn" data-fc="delete" data-tip="Delete selected" style="color:var(--err)"><span class="mi mi-sm">delete</span></button>
-                <button class="tb-btn" data-fc="clear"  data-tip="Clear all"><span class="mi mi-sm">layers_clear</span></button>
-                <div class="tb-sep"></div>
-                <!-- Exit FC mode button -->
-                <button class="tb-btn fc-toggle-btn on" data-tip="Exit flowchart"><span class="mi mi-sm">close</span></button>
+                <div class="page-ed" id="ed-L" contenteditable="true"
+                     data-ph="Start writing…"></div>
               </div>
-
-            </div><!-- /pg-toolbar-L -->
+            </div>
           </div>
-        </div><!-- /wrap-L -->
 
-        <!-- SPINE -->
-        <div class="spine">
-          <div class="s-ring"></div><div class="s-ring"></div><div class="s-ring"></div>
-          <div class="s-mid"></div>
-          <div class="s-ring"></div><div class="s-ring"></div><div class="s-ring"></div>
-        </div>
+          <!-- SPINE -->
+          <div class="spine">
+            <div class="s-ring"></div><div class="s-ring"></div><div class="s-ring"></div>
+            <div class="s-mid"></div>
+            <div class="s-ring"></div><div class="s-ring"></div><div class="s-ring"></div>
+          </div>
 
-        <!-- ── RIGHT PAGE ── -->
-        <div class="page-wrap right" id="wrap-R">
-          <div class="nb-page" id="pg-R">
-
-            <div class="pg-head">
-              <span class="pg-topic-lbl" id="lbl-R"></span>
-              <span class="pg-title-display" id="title-R"></span>
-              <span class="pg-num" id="num-R"></span>
-            </div>
-
-            <div class="pg-body">
-              <div class="fc-overlay" id="fc-ov-R">
-                <svg><!-- shared defs not needed here; fc-arr defined once above --></svg>
+          <!-- RIGHT PAGE -->
+          <div class="page-wrap right" id="wrap-R">
+            <div class="nb-page" id="pg-R">
+              <div class="pg-head">
+                <span class="pg-topic-lbl" id="lbl-R"></span>
+                <span class="pg-title-display" id="title-R"></span>
+                <span class="pg-num" id="num-R"></span>
               </div>
-              <div class="page-ed" id="ed-R" contenteditable="true" data-ph="Continue writing…"></div>
-            </div>
-
-            <!-- ── RIGHT TOOLBAR ── -->
-            <div class="pg-toolbar" id="pg-toolbar-R">
-
-              <div class="tb-text-group" id="text-grp-R">
-                <select class="tb-sel fnt-sel" title="Font" style="max-width:76px;">
-                  <option value="'DM Sans',sans-serif">DM Sans</option>
-                  <option value="Georgia,serif">Georgia</option>
-                  <option value="'Courier New',monospace">Courier</option>
-                  <option value="'Arial',sans-serif">Arial</option>
-                </select>
-                <select class="tb-sel sz-sel" title="Size" style="max-width:50px;">
-                  <option>11px</option><option>12px</option><option>13px</option>
-                  <option selected>14px</option><option>16px</option><option>18px</option>
-                  <option>20px</option><option>24px</option><option>28px</option>
-                </select>
-                <div class="tb-sep"></div>
-                <div class="hd-wrap">
-                  <button class="tb-btn hd-btn" data-tip="Heading style"><span class="mi mi-sm">title</span></button>
-                  <div class="hd-drop">
-                    <button class="hd-opt" data-tag="h1"><span class="hd-preview">H1</span><span class="hd-label">Heading 1</span></button>
-                    <button class="hd-opt" data-tag="h2"><span class="hd-preview">H2</span><span class="hd-label">Heading 2</span></button>
-                    <button class="hd-opt" data-tag="h3"><span class="hd-preview">H3</span><span class="hd-label">Sub-heading</span></button>
-                    <button class="hd-opt" data-tag="p"><span class="hd-preview" style="font-style:normal;font-size:11px;">¶</span><span class="hd-label">Normal</span></button>
-                  </div>
+              <div class="pg-body">
+                <div class="fc-overlay" id="fc-ov-R">
+                  <svg></svg>
                 </div>
-                <div class="tb-sep"></div>
-                <button class="tb-btn" data-cmd="bold"          data-tip="Bold (Ctrl+B)"      style="font-weight:800;font-size:13px;">B</button>
-                <button class="tb-btn" data-cmd="italic"        data-tip="Italic (Ctrl+I)"    style="font-style:italic;font-size:13px;">I</button>
-                <button class="tb-btn" data-cmd="underline"     data-tip="Underline (Ctrl+U)" style="text-decoration:underline;font-size:13px;">U</button>
-                <button class="tb-btn" data-cmd="strikeThrough" data-tip="Strikethrough"      style="text-decoration:line-through;font-size:12px;">S</button>
-                <div class="tb-sep"></div>
-                <button class="tb-btn" data-cmd="justifyLeft"   data-tip="Left">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="0" width="14" height="1.5" rx=".7"/><rect y="3" width="9" height="1.5" rx=".7"/><rect y="6" width="12" height="1.5" rx=".7"/><rect y="9" width="7" height="1.5" rx=".7"/></svg>
-                </button>
-                <button class="tb-btn" data-cmd="justifyCenter" data-tip="Center">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="0" width="14" height="1.5" rx=".7"/><rect x="2.5" y="3" width="9" height="1.5" rx=".7"/><rect x="1" y="6" width="12" height="1.5" rx=".7"/><rect x="3.5" y="9" width="7" height="1.5" rx=".7"/></svg>
-                </button>
-                <button class="tb-btn" data-cmd="justifyRight"  data-tip="Right">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><rect y="0" width="14" height="1.5" rx=".7"/><rect x="5" y="3" width="9" height="1.5" rx=".7"/><rect x="2" y="6" width="12" height="1.5" rx=".7"/><rect x="7" y="9" width="7" height="1.5" rx=".7"/></svg>
-                </button>
-                <div class="tb-sep"></div>
-                <button class="tb-btn" data-cmd="insertUnorderedList" data-tip="Bullets">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><circle cx="1.2" cy="1.4" r="1.1"/><rect x="4" y=".65" width="10" height="1.5" rx=".7"/><circle cx="1.2" cy="5.5" r="1.1"/><rect x="4" y="4.75" width="10" height="1.5" rx=".7"/><circle cx="1.2" cy="9.6" r="1.1"/><rect x="4" y="8.85" width="10" height="1.5" rx=".7"/></svg>
-                </button>
-                <button class="tb-btn" data-cmd="insertOrderedList" data-tip="Numbers">
-                  <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor"><text x="0" y="3" font-size="4" font-family="sans-serif" fill="currentColor">1.</text><rect x="5" y=".65" width="9" height="1.5" rx=".7"/><text x="0" y="7" font-size="4" font-family="sans-serif" fill="currentColor">2.</text><rect x="5" y="4.75" width="9" height="1.5" rx=".7"/><text x="0" y="11" font-size="4" font-family="sans-serif" fill="currentColor">3.</text><rect x="5" y="8.85" width="9" height="1.5" rx=".7"/></svg>
-                </button>
-                <div class="tb-sep"></div>
-                <button class="col-sw" data-tip="Text color" title="Text color">
-                  <span class="mi" style="font-size:14px;color:var(--tx-muted)">palette</span>
-                  <div class="col-bar"></div>
-                  <input type="color" class="col-inp" value="#dee5ff"/>
-                </button>
-                <button class="tb-btn" data-cmd="hiliteColor" data-tip="Highlight"><span class="mi mi-sm">format_ink_highlighter</span></button>
-                <div class="tb-sep"></div>
-                <button class="tb-btn lnk-btn" data-tip="Link"><span class="mi mi-sm">link</span></button>
-                <button class="tb-btn img-btn" data-tip="Image"><span class="mi mi-sm">image</span></button>
-                <input type="file" class="img-inp" accept="image/*" style="display:none"/>
-                <div class="tb-sep"></div>
-                <button class="tb-btn fc-toggle-btn" data-tip="Flowchart mode"><span class="mi mi-sm">account_tree</span></button>
+                <div class="page-ed" id="ed-R" contenteditable="true"
+                     data-ph="Continue writing…"></div>
               </div>
-
-              <div class="tb-fc-group" id="fc-grp-R">
-                <button class="tb-btn" data-fc="add-rect"    data-tip="Add block"><span class="mi mi-sm">crop_square</span></button>
-                <button class="tb-btn" data-fc="add-diamond" data-tip="Decision"><span class="mi mi-sm">diamond</span></button>
-                <button class="tb-btn" data-fc="add-cloud"   data-tip="Cloud"><span class="mi mi-sm">blur_on</span></button>
-                <button class="tb-btn" data-fc="connect"     data-tip="Connect nodes"><span class="mi mi-sm">linear_scale</span></button>
-                <div class="tb-sep"></div>
-                <button class="tb-btn" data-fc="delete" data-tip="Delete selected" style="color:var(--err)"><span class="mi mi-sm">delete</span></button>
-                <button class="tb-btn" data-fc="clear"  data-tip="Clear all"><span class="mi mi-sm">layers_clear</span></button>
-                <div class="tb-sep"></div>
-                <button class="tb-btn fc-toggle-btn on" data-tip="Exit flowchart"><span class="mi mi-sm">close</span></button>
-              </div>
-
-            </div><!-- /pg-toolbar-R -->
+            </div>
           </div>
-        </div><!-- /wrap-R -->
 
+        </div><!-- /page-spread -->
+
+        <!-- ════ UNIFIED TOOLBAR — spans full width of both pages ════ -->
+        <div id="unified-toolbar">
+
+          <!-- TEXT TOOLS GROUP -->
+          <div id="tb-text">
+
+            <!-- Font & size -->
+            <select class="tb-sel" id="fnt-sel" style="max-width:80px;" title="Font">
+              <option value="'DM Sans',sans-serif">DM Sans</option>
+              <option value="Georgia,serif">Georgia</option>
+              <option value="'Courier New',monospace">Courier</option>
+              <option value="'Arial',sans-serif">Arial</option>
+            </select>
+            <select class="tb-sel" id="sz-sel" style="max-width:52px;" title="Size">
+              <option>11px</option><option>12px</option><option>13px</option>
+              <option selected>14px</option><option>16px</option><option>18px</option>
+              <option>20px</option><option>24px</option><option>28px</option>
+            </select>
+
+            <div class="tb-sep"></div>
+
+            <!-- Heading dropdown -->
+            <div class="hd-wrap">
+              <button class="tb-btn" id="hd-btn" data-tip="Heading style">
+                <span class="mi mi-sm">title</span>
+              </button>
+              <div class="hd-drop" id="hd-drop">
+                <button class="hd-opt" data-tag="h1">
+                  <span class="hd-preview">H1</span><span class="hd-label">Heading 1</span>
+                </button>
+                <button class="hd-opt" data-tag="h2">
+                  <span class="hd-preview">H2</span><span class="hd-label">Heading 2</span>
+                </button>
+                <button class="hd-opt" data-tag="h3">
+                  <span class="hd-preview">H3</span><span class="hd-label">Sub-heading</span>
+                </button>
+                <button class="hd-opt" data-tag="p">
+                  <span class="hd-preview" style="font-style:normal;font-size:11px;">¶</span>
+                  <span class="hd-label">Normal</span>
+                </button>
+              </div>
+            </div>
+
+            <div class="tb-sep"></div>
+
+            <!-- B I U S -->
+            <button class="tb-btn" data-cmd="bold"          data-tip="Bold (Ctrl+B)"
+                    style="font-weight:800;font-size:13px;">B</button>
+            <button class="tb-btn" data-cmd="italic"        data-tip="Italic (Ctrl+I)"
+                    style="font-style:italic;font-size:13px;">I</button>
+            <button class="tb-btn" data-cmd="underline"     data-tip="Underline (Ctrl+U)"
+                    style="text-decoration:underline;font-size:13px;">U</button>
+            <button class="tb-btn" data-cmd="strikeThrough" data-tip="Strikethrough"
+                    style="text-decoration:line-through;font-size:12px;">S</button>
+            <button class="tb-btn" data-cmd="superscript"   data-tip="Superscript"
+                    style="font-size:10px;vertical-align:super;">x²</button>
+            <button class="tb-btn" data-cmd="subscript"     data-tip="Subscript"
+                    style="font-size:10px;vertical-align:sub;">x₂</button>
+
+            <div class="tb-sep"></div>
+
+            <!-- Alignment -->
+            <button class="tb-btn" data-cmd="justifyLeft"   data-tip="Left">
+              <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor">
+                <rect y="0" width="14" height="1.5" rx=".7"/>
+                <rect y="3" width="9"  height="1.5" rx=".7"/>
+                <rect y="6" width="12" height="1.5" rx=".7"/>
+                <rect y="9" width="7"  height="1.5" rx=".7"/>
+              </svg>
+            </button>
+            <button class="tb-btn" data-cmd="justifyCenter" data-tip="Center">
+              <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor">
+                <rect y="0" x="0"   width="14" height="1.5" rx=".7"/>
+                <rect y="3" x="2.5" width="9"  height="1.5" rx=".7"/>
+                <rect y="6" x="1"   width="12" height="1.5" rx=".7"/>
+                <rect y="9" x="3.5" width="7"  height="1.5" rx=".7"/>
+              </svg>
+            </button>
+            <button class="tb-btn" data-cmd="justifyRight"  data-tip="Right">
+              <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor">
+                <rect y="0" x="0" width="14" height="1.5" rx=".7"/>
+                <rect y="3" x="5" width="9"  height="1.5" rx=".7"/>
+                <rect y="6" x="2" width="12" height="1.5" rx=".7"/>
+                <rect y="9" x="7" width="7"  height="1.5" rx=".7"/>
+              </svg>
+            </button>
+            <button class="tb-btn" data-cmd="justifyFull" data-tip="Justify">
+              <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor">
+                <rect y="0" width="14" height="1.5" rx=".7"/>
+                <rect y="3" width="14" height="1.5" rx=".7"/>
+                <rect y="6" width="14" height="1.5" rx=".7"/>
+                <rect y="9" width="10" height="1.5" rx=".7"/>
+              </svg>
+            </button>
+
+            <div class="tb-sep"></div>
+
+            <!-- Indent -->
+            <button class="tb-btn" data-cmd="indent"  data-tip="Indent">
+              <span class="mi mi-sm">format_indent_increase</span>
+            </button>
+            <button class="tb-btn" data-cmd="outdent" data-tip="Outdent">
+              <span class="mi mi-sm">format_indent_decrease</span>
+            </button>
+
+            <div class="tb-sep"></div>
+
+            <!-- Lists -->
+            <button class="tb-btn" data-cmd="insertUnorderedList" data-tip="Bullet list">
+              <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor">
+                <circle cx="1.2" cy="1.4" r="1.1"/>
+                <rect x="4" y=".65"  width="10" height="1.5" rx=".7"/>
+                <circle cx="1.2" cy="5.5" r="1.1"/>
+                <rect x="4" y="4.75" width="10" height="1.5" rx=".7"/>
+                <circle cx="1.2" cy="9.6" r="1.1"/>
+                <rect x="4" y="8.85" width="10" height="1.5" rx=".7"/>
+              </svg>
+            </button>
+            <button class="tb-btn" data-cmd="insertOrderedList" data-tip="Numbered list">
+              <svg width="14" height="11" viewBox="0 0 14 11" fill="currentColor">
+                <text x="0" y="3"   font-size="4" font-family="sans-serif" fill="currentColor">1.</text>
+                <rect x="5" y=".65"  width="9" height="1.5" rx=".7"/>
+                <text x="0" y="7"   font-size="4" font-family="sans-serif" fill="currentColor">2.</text>
+                <rect x="5" y="4.75" width="9" height="1.5" rx=".7"/>
+                <text x="0" y="11"  font-size="4" font-family="sans-serif" fill="currentColor">3.</text>
+                <rect x="5" y="8.85" width="9" height="1.5" rx=".7"/>
+              </svg>
+            </button>
+
+            <div class="tb-sep"></div>
+
+            <!-- Colour + highlight -->
+            <button class="col-sw" id="col-btn" data-tip="Text color" title="Text color">
+              <span class="mi" style="font-size:14px;color:var(--tx-muted)">palette</span>
+              <div class="col-bar" id="col-bar"></div>
+              <input type="color" class="col-inp" id="col-inp" value="#dee5ff"/>
+            </button>
+            <button class="tb-btn" id="hl-btn" data-tip="Highlight">
+              <span class="mi mi-sm">format_ink_highlighter</span>
+            </button>
+
+            <div class="tb-sep"></div>
+
+            <!-- Link + image -->
+            <button class="tb-btn" id="lnk-btn" data-tip="Insert link">
+              <span class="mi mi-sm">link</span>
+            </button>
+            <button class="tb-btn" id="img-btn" data-tip="Insert image">
+              <span class="mi mi-sm">image</span>
+            </button>
+            <input type="file" id="img-inp" accept="image/*" style="display:none"/>
+
+            <div class="tb-sep"></div>
+
+            <!-- Blockquote + code -->
+            <button class="tb-btn" data-cmd="formatBlock" data-tip="Block quote"
+                    onclick="document.execCommand('formatBlock',false,'BLOCKQUOTE')">
+              <span class="mi mi-sm">format_quote</span>
+            </button>
+            <button class="tb-btn" data-tip="Code block"
+                    onclick="document.execCommand('formatBlock',false,'PRE')">
+              <span class="mi mi-sm">code</span>
+            </button>
+
+          </div><!-- /tb-text -->
+
+          <!-- Spacer before right-side persistent buttons -->
+          <div class="tb-spacer"></div>
+
+          <!-- FC mode badge (shown when FC mode is on) -->
+          <div class="fc-mode-badge" id="fc-mode-badge">
+            <div class="pulse"></div>Flowchart mode
+          </div>
+
+          <!-- FC TOOLS GROUP (shown in FC mode) -->
+          <div id="tb-fc">
+            <button class="tb-btn" id="fc-add-rect" data-tip="Block">
+              <span class="mi mi-sm">crop_square</span>
+            </button>
+            <button class="tb-btn" id="fc-add-diam" data-tip="Decision">
+              <span class="mi mi-sm">diamond</span>
+            </button>
+            <button class="tb-btn" id="fc-add-oval" data-tip="Terminator">
+              <span class="mi mi-sm">panorama_fish_eye</span>
+            </button>
+            <button class="tb-btn" id="fc-add-para" data-tip="Input/Output">
+              <span class="mi mi-sm">parallelogram</span>
+            </button>
+            <div class="tb-sep"></div>
+            <button class="tb-btn" id="fc-connect" data-tip="Connect nodes">
+              <span class="mi mi-sm">linear_scale</span>
+            </button>
+            <div class="tb-sep"></div>
+            <button class="tb-btn" id="fc-del" data-tip="Delete selected"
+                    style="color:var(--err)">
+              <span class="mi mi-sm">delete</span>
+            </button>
+            <button class="tb-btn" id="fc-clear" data-tip="Clear all">
+              <span class="mi mi-sm">layers_clear</span>
+            </button>
+            <div class="tb-sep"></div>
+            <button class="tb-btn on" id="fc-exit" data-tip="Exit flowchart">
+              <span class="mi mi-sm">close</span>
+            </button>
+          </div>
+
+          <!-- FC toggle — always visible at far right -->
+          <div class="tb-sep"></div>
+          <button class="tb-btn" id="fc-btn" data-tip="Flowchart mode">
+            <span class="mi mi-sm">account_tree</span>
+          </button>
+
+        </div><!-- /unified-toolbar -->
       </div><!-- /notebook -->
+
     </main>
   </div><!-- /layout -->
 
@@ -322,7 +364,8 @@
       <p class="m-sub">Name this section of your notebook to begin writing.</p>
       <div style="margin-bottom:16px">
         <label class="m-lbl">Topic name</label>
-        <input class="m-inp" id="m-topic-name" type="text" placeholder="e.g. Chapter 1, Project Notes…"/>
+        <input class="m-inp" id="m-topic-name" type="text"
+               placeholder="e.g. Chapter 1, Project Notes…"/>
       </div>
       <div class="m-actions">
         <button class="m-cancel" id="m-cancel">Cancel</button>
