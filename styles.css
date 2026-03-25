@@ -500,3 +500,230 @@ body{font-family:var(--f-ui);background:var(--bg);color:var(--tx);display:flex;f
 .anim-fwd-d{animation:fwdIn .25s cubic-bezier(.4,0,.2,1) .06s both}
 .anim-bk   {animation:bkIn  .25s cubic-bezier(.4,0,.2,1) both}
 .anim-bk-d {animation:bkIn  .25s cubic-bezier(.4,0,.2,1) .06s both}
+
+/* ═══════════════════════════════════════════════════
+   SIMPLNOTES — FINAL SAFE THEME PATCH
+   ⚠️ DO NOT REPLACE ORIGINAL CSS
+   👉 PASTE THIS AT THE VERY BOTTOM OF YOUR EXISTING styles.css
+═══════════════════════════════════════════════════ */
+
+/* ===== BACKGROUND ===== */
+body {
+  background: url("tobias-rademacher-NuBvAE6VfSM-unsplash.jpg") center/cover no-repeat fixed;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(10,12,18,0.55), rgba(10,12,18,0.75));
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* ===== REMOVE BLOBS ONLY ===== */
+.blob {
+  display: none !important;
+}
+
+/* ===== GLASS EFFECT (SAFE OVERRIDES) ===== */
+#topbar {
+  background: rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255,255,255,0.12) !important;
+}
+
+#sidebar {
+  background: rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(22px);
+  border-right: 1px solid rgba(255,255,255,0.12) !important;
+}
+
+.nb-page {
+  background: rgba(255,255,255,0.07) !important;
+  backdrop-filter: blur(28px);
+  border: 1px solid rgba(255,255,255,0.15) !important;
+}
+
+#unified-toolbar {
+  background: rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(24px);
+  border-top: 1px solid rgba(255,255,255,0.12) !important;
+}
+
+.side-nav {
+  background: rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.12) !important;
+}
+
+.side-nav:hover {
+  background: rgba(255,255,255,0.18) !important;
+}
+
+/* ===== SIDEBAR INTERACTIONS ===== */
+.topic-row:hover {
+  background: rgba(255,255,255,0.08) !important;
+}
+
+.topic-row.active {
+  background: rgba(255,255,255,0.14) !important;
+  border-left-color: rgba(255,255,255,0.5) !important;
+}
+
+/* ===== TEXT VISIBILITY ===== */
+.page-ed {
+  color: #e8ecf3 !important;
+}
+
+.page-ed strong {
+  color: #ffffff !important;
+}
+
+.pg-title-display {
+  color: #ffffff !important;
+}
+
+.pg-topic-lbl {
+  color: rgba(220,230,255,0.7) !important;
+}
+
+/* ===== TOOLBAR BUTTONS ===== */
+.tb-btn:hover {
+  background: rgba(255,255,255,0.12) !important;
+}
+
+/* ===== DEPTH ===== */
+#notebook {
+  backdrop-filter: blur(6px);
+}
+
+
+/* ═══════════════════════════════════════════════════
+   REFINEMENTS — brighter glass, text, remove blue accents
+   Paste below previous patch (or replace it)
+═══════════════════════════════════════════════════ */
+
+/* Brighten overall scene (reduce dark overlay) */
+body::before{
+  background: linear-gradient(
+    to bottom,
+    rgba(10,12,18,0.35),
+    rgba(10,12,18,0.55)
+  ) !important;
+}
+
+/* Make glass panels more visible */
+.nb-page{
+  background: rgba(255,255,255,0.12) !important;
+  backdrop-filter: blur(34px) saturate(120%);
+  border: 1px solid rgba(255,255,255,0.22) !important;
+}
+
+#sidebar{
+  background: rgba(255,255,255,0.10) !important;
+  backdrop-filter: blur(26px) saturate(120%);
+}
+
+#topbar{
+  background: rgba(255,255,255,0.10) !important;
+}
+
+#unified-toolbar{
+  background: rgba(255,255,255,0.10) !important;
+}
+
+/* Increase text contrast */
+body, .logo-name{
+  color: #f2f5fb !important;
+}
+
+.page-ed{
+  color: #eef2f9 !important;
+}
+
+.pg-title-display{
+  color: #ffffff !important;
+}
+
+.pg-num{
+  color: rgba(255,255,255,0.7) !important;
+}
+
+/* Placeholder text visibility */
+.page-ed:empty::before{
+  color: rgba(255,255,255,0.55) !important;
+}
+
+/* Remove blue accents → neutral grey */
+:root{
+  --pri: rgba(255,255,255,0.6) !important;
+  --pri2: rgba(255,255,255,0.5) !important;
+  --sec: rgba(255,255,255,0.7) !important;
+  --ter: rgba(255,255,255,0.6) !important;
+}
+
+/* Divider (spine) neutralize blue */
+.spine{
+  background: linear-gradient(
+    to right,
+    rgba(255,255,255,0.06),
+    rgba(255,255,255,0.12),
+    rgba(255,255,255,0.06)
+  ) !important;
+}
+
+.s-ring{
+  border-color: rgba(255,255,255,0.35) !important;
+  background: rgba(255,255,255,0.08) !important;
+}
+
+/* Buttons (including Start new topic) */
+.btn-pri{
+  background: rgba(255,255,255,0.18) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.btn-pri:hover{
+  background: rgba(255,255,255,0.28) !important;
+}
+
+/* Sidebar add button */
+.sb-add-btn{
+  background: rgba(255,255,255,0.08) !important;
+  border-color: rgba(255,255,255,0.35) !important;
+  color: #ffffff !important;
+}
+
+.sb-add-btn:hover{
+  background: rgba(255,255,255,0.16) !important;
+}
+
+/* Topic highlight (remove blue tint) */
+.topic-row.active{
+  background: rgba(255,255,255,0.16) !important;
+  border-left-color: rgba(255,255,255,0.6) !important;
+}
+
+/* Modal (New Topic popup) */
+#modal-wrap{
+  backdrop-filter: blur(12px);
+}
+
+.modal{
+  background: rgba(255,255,255,0.12) !important;
+  backdrop-filter: blur(26px);
+  border: 1px solid rgba(255,255,255,0.25) !important;
+}
+
+.modal input{
+  background: rgba(255,255,255,0.08) !important;
+  color: #fff !important;
+  border: 1px solid rgba(255,255,255,0.2) !important;
+}
+
+/* Icons slightly brighter */
+.mi{
+  color: rgba(255,255,255,0.85) !important;
+}
