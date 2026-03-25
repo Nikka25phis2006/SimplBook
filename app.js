@@ -237,7 +237,103 @@ function checkOverflow(side) {
   const body = ed.parentElement;
   if (ed.scrollHeight <= body.offsetHeight + 2) return;  // +2 px tolerance
 
-  // Detach the last block node
+  // ── Strategy: carry only the text that overflows, not the whole last block ──
+  // We work at the character/word level inside the last text node so the break
+  // is as fine-grained as possible (word-level, not block-level).
+
+  const sel   = window.getSelection();
+  const range = sel.rangeCount ? sel.getRangeAt(0) : null;
+
+  // Find the deepest last text node in the editor
+  function lastTextNode(el) {
+    if (!el.childNodes.length) return el.nodeType === Node.TEXT_NODE ? el : null;
+    for (let i = el.childNodes.length - 1; i >= 0; i--) {
+      const found = lastTextNode(el.childNodes[i]);
+      if (found) return found;
+    }
+    return null;
+  }
+
+  const lastTN = lastTextNode(ed);
+
+  if (lastTN && lastTN.nodeType === Node.TEXT_NODE && lastTN.textContent.length > 0) {
+    // Binary-search for the character index where overflow begins
+    const fullText = lastTN.textContent;
+    let lo = 0, hi = fullText.length;
+    const originalText = fullText;
+
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      lastTN.textContent = fullText.slice(0, mid);
+      if (ed.scrollHeight <= body.offsetHeight + 2) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
+      }
+    }
+
+    // lo is now the first character that causes overflow.
+    // Find word boundary: walk back to the nearest space.
+    let breakAt = lo > 0 ? lo - 1 : 0;
+    const textBefore = fullText.slice(0, breakAt);
+    const spaceIdx   = textBefore.lastIndexOf(' ');
+    if (spaceIdx > 0) {
+      breakAt = spaceIdx + 1; // keep space on the left page
+    } else if (breakAt === 0) {
+      // The very first character overflows (e.g. a very large heading).
+      // Fallback to block-level transfer.
+      lastTN.textContent = originalText;
+      checkOverflowBlockLevel(side);
+      return;
+    }
+
+    const staysOnPage = fullText.slice(0, breakAt);
+    const carriedText = fullText.slice(breakAt);
+
+    lastTN.textContent = staysOnPage;
+
+    // Carry the overflowed text as a plain text node wrapped in a <span>
+    // so it inherits parent formatting.
+    const parentEl = lastTN.parentElement;
+    let carryHTML;
+    if (parentEl && parentEl !== ed) {
+      // Clone the parent element, put carry text in it
+      const clone = parentEl.cloneNode(false);
+      clone.textContent = carriedText;
+      carryHTML = clone.outerHTML;
+    } else {
+      carryHTML = carriedText;
+    }
+
+    const idx = side === 'L' ? spread : spread + 1;
+    if (pages[idx]) pages[idx].content = ed.innerHTML;
+
+    if (side === 'L') {
+      ensurePage(spread + 1, pages[spread]?.topicId);
+      pages[spread + 1].content = carryHTML + (pages[spread + 1].content || '');
+      $('ed-R').innerHTML = pages[spread + 1].content;
+      $('wrap-R').style.opacity = '1';
+      updatePageHeader('R');
+      focusEnd($('ed-R'));
+    } else {
+      ensurePage(spread + 2, pages[spread + 1]?.topicId);
+      pages[spread + 2].content = carryHTML + (pages[spread + 2].content || '');
+      saveContent();
+      navigateTo(spread + 2, 'fwd');
+      setTimeout(() => focusEnd($('ed-L')), 60);
+    }
+    return;
+  }
+
+  // Fallback for non-text-node overflow (e.g. images, block elements)
+  checkOverflowBlockLevel(side);
+}
+
+function checkOverflowBlockLevel(side) {
+  const ed   = $('ed-' + side);
+  const body = ed.parentElement;
+  if (ed.scrollHeight <= body.offsetHeight + 2) return;
+
   let last = ed.lastElementChild || ed.lastChild;
   if (!last || (ed.childNodes.length === 1 && ed.textContent === '')) return;
 
@@ -249,20 +345,18 @@ function checkOverflow(side) {
   if (pages[idx]) pages[idx].content = ed.innerHTML;
 
   if (side === 'L') {
-    // Push carry to right page
     ensurePage(spread + 1, pages[spread]?.topicId);
     pages[spread + 1].content = carry + (pages[spread + 1].content || '');
     $('ed-R').innerHTML = pages[spread + 1].content;
     $('wrap-R').style.opacity = '1';
     updatePageHeader('R');
-    focusStart($('ed-R'));
+    focusEnd($('ed-R'));
   } else {
-    // Push carry to next spread's left page
     ensurePage(spread + 2, pages[spread + 1]?.topicId);
     pages[spread + 2].content = carry + (pages[spread + 2].content || '');
     saveContent();
     navigateTo(spread + 2, 'fwd');
-    setTimeout(() => focusStart($('ed-L')), 60);
+    setTimeout(() => focusEnd($('ed-L')), 60);
   }
 }
 
@@ -329,15 +423,39 @@ $('nav-next').addEventListener('click', () => {
 
 /* Add blank page button (+ under right arrow) */
 $('add-page-btn').addEventListener('click', () => {
+  // If the notebook has no topics yet, treat this exactly like New Topic
+  if (!topics.length) {
+    openModal();
+    return;
+  }
+
   saveContent();
-  // Insert two blank pages at current spread+2 position
-  const tid = topicOf(spread + 1)?.id || topicOf(spread)?.id || null;
+
+  // Determine which topic the new page belongs to:
+  // use the topic of the right page, or left page, or last topic.
+  const tid = topicOf(spread + 1)?.id
+           || topicOf(spread)?.id
+           || topics[topics.length - 1]?.id
+           || null;
+
+  // Insert a single blank page immediately after the current right page (spread+1).
+  // We insert one page (not two) so page numbers increment by one, not two.
+  // Pages are always displayed in pairs so this may leave one page on the right
+  // of its spread blank — that is correct and intentional.
   const insertAt = spread + 2;
-  pages.splice(insertAt, 0,
-    { id: nPid++, topicId: tid, content: '', fcNodes: [], fcEdges: [] },
-    { id: nPid++, topicId: tid, content: '', fcNodes: [], fcEdges: [] }
-  );
-  navigateTo(insertAt, 'fwd');
+  pages.splice(insertAt, 0, {
+    id: nPid++, topicId: tid, content: '', fcNodes: [], fcEdges: []
+  });
+
+  // Navigate so the new page is visible as the left page of its spread.
+  // If insertAt is odd (right slot), show it paired with the page before it.
+  const targetSpread = insertAt % 2 === 0 ? insertAt : insertAt - 1;
+  navigateTo(targetSpread, 'fwd');
+  setTimeout(() => {
+    // Focus whichever editor shows the new page
+    const edId = insertAt === spread ? 'ed-L' : 'ed-R';
+    $(edId).focus();
+  }, 80);
 });
 
 $('sb-toggle').addEventListener('click', () => {
@@ -461,11 +579,18 @@ $('lnk-btn').addEventListener('mousedown', e => {
 });
 $('lnk-cancel').addEventListener('click', () => $('link-pop').classList.remove('show'));
 $('lnk-apply').addEventListener('click', () => {
-  const url = $('lnk-url').value;
-  if (url && savedRange) {
+  let url = $('lnk-url').value.trim();
+  if (!url) { $('link-pop').classList.remove('show'); return; }
+  // Ensure the URL has a protocol so it opens externally
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  if (savedRange) {
     const s = window.getSelection(); s.removeAllRanges(); s.addRange(savedRange);
     document.execCommand('createLink', false, url);
-    document.querySelectorAll('.page-ed a').forEach(a => a.target = '_blank');
+    // Make every link in the editors open in a new tab and be clickable
+    document.querySelectorAll('.page-ed a').forEach(a => {
+      a.target = '_blank';
+      a.rel    = 'noopener noreferrer';
+    });
   }
   $('link-pop').classList.remove('show');
 });
@@ -474,6 +599,21 @@ document.addEventListener('click', e => {
     $('link-pop').classList.remove('show');
   if (!hdDrop.contains(e.target) && e.target !== hdBtn)
     hdDrop.classList.remove('open');
+});
+
+// ── Make links inside editors clickable ──
+// contenteditable consumes clicks and prevents navigation.
+// We intercept clicks on <a> tags and open them programmatically.
+['ed-L', 'ed-R'].forEach(id => {
+  $(id).addEventListener('click', e => {
+    const a = e.target.closest('a[href]');
+    if (!a) return;
+    // Only open if the click was a plain left-click (no text selection drag)
+    const sel = window.getSelection();
+    if (sel && sel.toString().length > 0) return; // user was selecting text
+    e.preventDefault();
+    window.open(a.href, '_blank', 'noopener,noreferrer');
+  });
 });
 
 /* ═══════════════════════════════════════════════════

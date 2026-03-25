@@ -259,7 +259,7 @@ body{font-family:var(--f-ui);background:var(--bg);color:var(--tx);display:flex;f
   word-break:break-word;overflow:hidden;white-space:pre-wrap}
 .page-ed:empty::before{content:attr(data-ph);color:var(--tx-faint);
   pointer-events:none;display:block}
-.page-ed a{color:var(--sec);text-decoration:underline}
+.page-ed a{color:var(--sec);text-decoration:underline;cursor:pointer}
 .page-ed img{max-width:100%;border-radius:var(--r-sm);display:block;margin:4px 0}
 .page-ed ul,.page-ed ol{padding-left:22px}
 .page-ed li{margin:2px 0}
