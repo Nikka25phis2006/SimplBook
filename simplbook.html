@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>SimplNotes</title>
+  <title>SimplBook</title>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
-  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="simplbook.css"/>
 </head>
 <body>
 
@@ -18,7 +18,7 @@
   <header id="topbar">
     <div class="logo-wrap">
       <div class="logo-icon"><span class="mi mi-fill">edit_note</span></div>
-      <span class="logo-name">SimplNotes</span>
+      <span class="logo-name">SimplBook</span>
     </div>
     <button class="icon-btn" id="sb-toggle" title="Toggle index"><span class="mi">menu</span></button>
     <div class="tb-div"></div>
@@ -183,10 +183,6 @@
                     style="text-decoration:underline;font-size:13px;">U</button>
             <button class="tb-btn" data-cmd="strikeThrough" data-tip="Strikethrough"
                     style="text-decoration:line-through;font-size:12px;">S</button>
-            <button class="tb-btn" data-cmd="superscript"   data-tip="Superscript"
-                    style="font-size:10px;vertical-align:super;">x²</button>
-            <button class="tb-btn" data-cmd="subscript"     data-tip="Subscript"
-                    style="font-size:10px;vertical-align:sub;">x₂</button>
 
             <div class="tb-sep"></div>
 
@@ -283,15 +279,11 @@
 
             <div class="tb-sep"></div>
 
-            <!-- Blockquote + code -->
-            <button class="tb-btn" data-cmd="formatBlock" data-tip="Block quote"
-                    onclick="document.execCommand('formatBlock',false,'BLOCKQUOTE')">
-              <span class="mi mi-sm">format_quote</span>
-            </button>
-            <button class="tb-btn" data-tip="Code block"
-                    onclick="document.execCommand('formatBlock',false,'PRE')">
-              <span class="mi mi-sm">code</span>
-            </button>
+            <!-- Superscript + Subscript -->
+            <button class="tb-btn" id="sup-btn" data-tip="Superscript"
+                    style="font-size:10px;vertical-align:super;">x²</button>
+            <button class="tb-btn" id="sub-btn" data-tip="Subscript"
+                    style="font-size:10px;vertical-align:sub;">x₂</button>
 
           </div><!-- /tb-text -->
 
@@ -374,6 +366,6 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="simplbook.js"></script>
 </body>
 </html>

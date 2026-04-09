@@ -21,7 +21,7 @@
   --warn:        #ffd166;
 
   /* ── Text ── */
-  --tx:          #dee5ff;
+  --tx:          #ffffff;
   --tx-muted:    #a3aac4;
   --tx-dim:      #6d758c;
   --tx-faint:    #40485d;
@@ -221,14 +221,6 @@ body{font-family:var(--f-ui);background:var(--bg);color:var(--tx);display:flex;f
 .page-wrap.left  .nb-page{border-radius:var(--r) 0 0 0;border-right:none}
 .page-wrap.right .nb-page{border-radius:0 var(--r) 0 0;border-left:none}
 
-/* Ruled lines */
-.nb-page::before{content:'';position:absolute;inset:50px 0 0 0;
-  pointer-events:none;z-index:0;
-  background-image:repeating-linear-gradient(
-    to bottom,transparent,transparent 27px,
-    rgba(170,164,255,0.038) 27px,rgba(170,164,255,0.038) 28px);
-  background-position:0 4px}
-
 /* Page header */
 .pg-head{height:50px;display:flex;align-items:center;padding:0 22px;
   border-bottom:1px solid rgba(255,255,255,0.05);
@@ -243,8 +235,9 @@ body{font-family:var(--f-ui);background:var(--bg);color:var(--tx);display:flex;f
   color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pg-num{font-size:10px;color:var(--tx-faint);font-weight:500;flex-shrink:0}
 
-/* Page body — fixed, no scroll */
-.pg-body{flex:1;position:relative;z-index:2;overflow:hidden;padding:14px 22px 8px}
+/* Page body — fixed, no scroll.
+   padding-top is 16px. */
+.pg-body{flex:1;position:relative;z-index:2;overflow:hidden;padding:16px 22px 0}
 
 /* FC overlay layer */
 .fc-overlay{position:absolute;inset:0;pointer-events:none;z-index:5;overflow:hidden}
@@ -252,9 +245,9 @@ body{font-family:var(--f-ui);background:var(--bg);color:var(--tx);display:flex;f
 .fc-overlay svg{position:absolute;inset:0;width:100%;height:100%;
   pointer-events:none;overflow:visible}
 
-/* Editor */
+/* Editor — line-height exactly 27px to match the ruled lines */
 .page-ed{width:100%;height:100%;outline:none;
-  font-family:var(--f-body);font-size:14px;line-height:1.8;
+  font-family:var(--f-body);font-size: 14px;line-height: 27px;
   color:var(--tx-muted);caret-color:var(--sec);
   word-break:break-word;overflow:hidden;white-space:pre-wrap}
 .page-ed:empty::before{content:attr(data-ph);color:var(--tx-faint);
@@ -298,7 +291,7 @@ body{font-family:var(--f-ui);background:var(--bg);color:var(--tx);display:flex;f
   border-radius:0 0 var(--r) var(--r);
   flex-shrink:0;
   position:relative;z-index:10;
-  overflow:hidden}
+  overflow:visible}
 
 /* text tools — default visible */
 #tb-text{display:contents}
@@ -503,8 +496,6 @@ body{font-family:var(--f-ui);background:var(--bg);color:var(--tx);display:flex;f
 
 /* ═══════════════════════════════════════════════════
    SIMPLNOTES — FINAL SAFE THEME PATCH
-   ⚠️ DO NOT REPLACE ORIGINAL CSS
-   👉 PASTE THIS AT THE VERY BOTTOM OF YOUR EXISTING styles.css
 ═══════════════════════════════════════════════════ */
 
 /* ===== BACKGROUND ===== */
@@ -727,3 +718,245 @@ body, .logo-name{
 .mi{
   color: rgba(255,255,255,0.85) !important;
 }
+
+/* ═══════════════════════════════════════════════════
+   THEME CONSISTENCY PATCH
+   Brings all remaining blue/purple-tinted elements
+   into the white-glass aesthetic.
+═══════════════════════════════════════════════════ */
+
+/* Toolbar selects (font / size dropdowns) */
+.tb-sel {
+  background: rgba(255,255,255,0.10) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  color: rgba(255,255,255,0.85) !important;
+}
+.tb-sel option {
+  background: #1a1f2e;
+  color: #e8ecf3;
+}
+.tb-sel:focus {
+  border-color: rgba(255,255,255,0.4) !important;
+}
+
+/* Sidebar index label */
+.sb-index-label {
+  color: rgba(255,255,255,0.45) !important;
+}
+
+/* Topic name text */
+.topic-name {
+  color: rgba(255,255,255,0.75) !important;
+}
+.topic-row.active .topic-name {
+  color: #ffffff !important;
+}
+.topic-pgcount {
+  color: rgba(255,255,255,0.4) !important;
+}
+.topic-dot {
+  border-color: rgba(255,255,255,0.35) !important;
+}
+.topic-row.active .topic-dot {
+  background: rgba(255,255,255,0.8) !important;
+  border-color: rgba(255,255,255,0.8) !important;
+}
+
+/* Heading dropdown */
+.hd-drop {
+  background: rgba(20,24,36,0.97) !important;
+  border-color: rgba(255,255,255,0.14) !important;
+}
+.hd-opt {
+  color: rgba(255,255,255,0.7) !important;
+}
+.hd-opt:hover {
+  background: rgba(255,255,255,0.10) !important;
+  color: #ffffff !important;
+}
+.hd-preview {
+  color: rgba(255,255,255,0.6) !important;
+}
+.hd-label {
+  color: rgba(255,255,255,0.65) !important;
+}
+
+/* Topic modal — match glass theme */
+#modal {
+  background: rgba(255,255,255,0.11) !important;
+  backdrop-filter: blur(28px) saturate(120%) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+}
+.m-title {
+  color: #ffffff !important;
+}
+.m-sub {
+  color: rgba(255,255,255,0.6) !important;
+}
+.m-lbl {
+  color: rgba(255,255,255,0.5) !important;
+}
+.m-inp {
+  background: rgba(255,255,255,0.10) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  color: #ffffff !important;
+}
+.m-inp::placeholder {
+  color: rgba(255,255,255,0.35) !important;
+}
+.m-inp:focus {
+  border-color: rgba(255,255,255,0.45) !important;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.07) !important;
+}
+.m-cancel {
+  border-color: rgba(255,255,255,0.18) !important;
+  color: rgba(255,255,255,0.65) !important;
+}
+.m-cancel:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: #ffffff !important;
+}
+.m-confirm {
+  background: rgba(255,255,255,0.2) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+.m-confirm:hover {
+  background: rgba(255,255,255,0.30) !important;
+}
+
+/* Link popover */
+#link-pop {
+  background: rgba(255,255,255,0.11) !important;
+  backdrop-filter: blur(28px) saturate(120%) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+}
+.pop-lbl {
+  color: rgba(255,255,255,0.5) !important;
+}
+.pop-inp {
+  background: rgba(255,255,255,0.10) !important;
+  border-color: rgba(255,255,255,0.18) !important;
+  color: #ffffff !important;
+}
+.pop-inp::placeholder {
+  color: rgba(255,255,255,0.35);
+}
+.pop-inp:focus {
+  border-color: rgba(255,255,255,0.45) !important;
+}
+.pop-cancel {
+  border-color: rgba(255,255,255,0.18) !important;
+  color: rgba(255,255,255,0.65) !important;
+}
+.pop-cancel:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: #ffffff !important;
+}
+.pop-apply {
+  background: rgba(255,255,255,0.2) !important;
+  color: #ffffff !important;
+}
+.pop-apply:hover {
+  background: rgba(255,255,255,0.30) !important;
+  opacity: 1 !important;
+}
+
+/* Toolbar separator */
+.tb-sep {
+  background: rgba(255,255,255,0.12) !important;
+}
+
+/* Toolbar buttons — make icon colour consistent */
+.tb-btn {
+  color: rgba(255,255,255,0.65) !important;
+}
+.tb-btn:hover {
+  color: #ffffff !important;
+}
+.tb-btn.on {
+  background: rgba(255,255,255,0.16) !important;
+  color: #ffffff !important;
+}
+
+/* Colour swatch icon */
+.col-sw .mi {
+  color: rgba(255,255,255,0.65) !important;
+}
+
+/* Heading dropdown */
+.hd-drop {
+  box-shadow: 0 -10px 40px rgba(0,0,0,0.4) !important;
+}
+
+/* Sidebar footer links */
+.sb-footer a {
+  color: rgba(255,255,255,0.55) !important;
+}
+.sb-footer a:hover {
+  color: rgba(255,255,255,0.9) !important;
+}
+
+/* Heading entries in sidebar */
+.h-text {
+  color: rgba(255,255,255,0.5) !important;
+}
+.h-bull {
+  color: rgba(255,255,255,0.3) !important;
+}
+.h-entry.hl .h-text {
+  color: rgba(255,255,255,0.85) !important;
+}
+.h-entry:hover {
+  background: rgba(255,255,255,0.06) !important;
+}
+.h-entry.hl {
+  background: rgba(255,255,255,0.09) !important;
+}
+
+/* FC mode badge */
+.fc-mode-badge {
+  background: rgba(255,255,255,0.10) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+  color: rgba(255,255,255,0.85) !important;
+}
+.fc-mode-badge .pulse {
+  background: rgba(255,255,255,0.8) !important;
+}
+
+/* Add-page button (small + circle) */
+.add-page-btn {
+  background: rgba(255,255,255,0.10) !important;
+  border-color: rgba(255,255,255,0.22) !important;
+  color: rgba(255,255,255,0.8) !important;
+}
+.add-page-btn:hover {
+  background: rgba(255,255,255,0.20) !important;
+  border-color: rgba(255,255,255,0.45) !important;
+}
+
+/* ── FIX: sub/sup font-size reset ──
+   Browser default makes sub/sup smaller (≈83%). Reset to same size as body
+   so they don't cause page-height inconsistency or visual size bugs. */
+.page-ed sup,
+.page-ed sub {
+  font-size: 0.75em;
+  line-height: 0;
+  position: relative;
+  vertical-align: baseline;
+}
+.page-ed sup { top: -0.5em; }
+.page-ed sub { bottom: -0.25em; }
+
+/* ═══════════════════════════════════════════════════
+   ADDITIONS — toggle, delete buttons, heading indent
+═══════════════════════════════════════════════════ */
+
+/* Remove the static topic-dot (now replaced by .topic-toggle in JS) */
+.topic-dot { display: none !important; }
+
+/* Heading entries — remove the old uniform padding, let JS classes control it */
+.heading-list { padding-left: 6px !important; }
+
+/* Make pg-head a flex row so the delete button aligns to the right */
+.pg-head { display: flex !important; align-items: center !important; }
