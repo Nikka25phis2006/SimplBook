@@ -34,9 +34,8 @@ const topicOf  = idx => topics.find(t => t.id === (pages[idx] || {}).topicId) ||
 const pagesFor = tid => pages.filter(p => p.topicId === tid);
 
 /* ── Sidebar ──
-   Headings are read directly from pages[].content (stored HTML).
-   On restore from localStorage this already contains the heading tags,
-   so renderSidebar works correctly without needing the DOM to be populated first. */
+   Reads headings from pages[].content directly, so it works on fresh load
+   and after typing without needing the DOM to be populated first. */
 function renderSidebar() {
   const list  = $('topic-list');
   const empty = $('sb-empty');
@@ -55,11 +54,11 @@ function renderSidebar() {
     const g = document.createElement('div');
     g.className = 'topic-group';
 
-    /* ── Topic row ── */
+    /* Topic row */
     const row = document.createElement('div');
     row.className = 'topic-row' + (topic.id === activeTid ? ' active' : '');
 
-    /* Collapse toggle (replaces the static bullet dot) */
+    /* Collapse toggle button */
     const allH = [];
     pagesFor(topic.id).forEach(pg => extractHeadings(pg.content).forEach(h => allH.push(h)));
     const hasHeadings  = allH.length > 0;
@@ -68,7 +67,6 @@ function renderSidebar() {
     const toggle = document.createElement('button');
     toggle.className = 'topic-toggle' + (isCollapsed ? ' collapsed' : '');
     toggle.title     = hasHeadings ? (isCollapsed ? 'Expand' : 'Collapse') : '';
-    /* Use a small triangle/chevron; falls back gracefully if icon font isn't ready */
     toggle.innerHTML = `<span class="toggle-arrow">${hasHeadings ? '▾' : '•'}</span>`;
     toggle.addEventListener('click', e => {
       e.stopPropagation();
@@ -106,17 +104,16 @@ function renderSidebar() {
     row.addEventListener('click', () => goToTopic(topic.id));
     g.appendChild(row);
 
-    /* ── Heading list ── */
+    /* Heading list */
     if (hasHeadings && !isCollapsed) {
       const hl = document.createElement('div');
       hl.className = 'heading-list';
       allH.forEach(h => {
         const e   = document.createElement('div');
         const vis = topic.id === activeTid && (lc + rc).includes(h.text);
-        /* Indentation level class: h1 = least, h3 = most */
         const lvl = h.tag === 'h1' ? 'h-level-1' : h.tag === 'h2' ? 'h-level-2' : 'h-level-3';
         e.className = `h-entry ${lvl}` + (vis ? ' hl' : '');
-        const b = h.tag === 'h1' ? '›' : h.tag === 'h2' ? '›' : '›';
+        const b = '›';
         e.innerHTML = `<span class="h-bull">${b}</span><span class="h-text">${h.text}</span>`;
         e.addEventListener('click', () => goToHeading(topic.id, h.text));
         hl.appendChild(e);
@@ -143,7 +140,7 @@ function renderSpread(dir) {
       $('num-' + s).textContent   = 'p.' + (spread + i + 1);
       $('title-' + s).textContent = topicOf(spread + i)?.name || '';
       wr.style.opacity = '1';
-      /* Wrap in try-catch: these are non-critical and must NOT block renderSidebar */
+      /* Non-critical rendering — wrapped so errors can't block renderSidebar */
       try { renderFcOverlay(s, pg); }         catch(e) { console.warn('renderFcOverlay:', e); }
       try { renderPageDeleteBtn(s, spread + i); } catch(e) { console.warn('renderPageDeleteBtn:', e); }
     } else {
@@ -157,7 +154,6 @@ function renderSpread(dir) {
   $('nav-prev').disabled = spread <= 0;
   $('nav-next').disabled = false;
   
-  /* renderSidebar is called here AND explicitly after renderSpread() in initFromStorage */
   renderSidebar();
 
   const aL = dir === 'fwd' ? 'anim-fwd'   : dir === 'bk' ? 'anim-bk'   : 'null';
@@ -531,26 +527,41 @@ function edKeydown(e, side) {
   if (!sel.rangeCount) return;
   const rng = sel.getRangeAt(0);
 
-  const inList = closestList(rng.commonAncestorContainer);
   if (e.key === 'Tab') {
     e.preventDefault();
-    if (inList) document.execCommand(e.shiftKey ? 'outdent' : 'indent');
-    else        e.shiftKey ? $('nav-prev').click() : $('nav-next').click();
+    document.execCommand(e.shiftKey ? 'outdent' : 'indent');
     return;
   }
 
-  if (e.key === 'ArrowLeft'  && side === 'R' && isAtStart(ed))     { if (pages[spread])     { e.preventDefault(); focusEnd($('ed-L'));   } return; }
-  if (e.key === 'ArrowRight' && side === 'L' && isAtEnd(ed))       { if (pages[spread + 1]) { e.preventDefault(); focusStart($('ed-R')); } return; }
-  if (e.key === 'ArrowDown'  && side === 'L' && isAtLastLine(ed))  { if (pages[spread + 1]) { e.preventDefault(); focusStart($('ed-R')); } return; }
-  if (e.key === 'ArrowUp'    && side === 'R' && isAtStart(ed)) { if (pages[spread])     { e.preventDefault(); focusEnd($('ed-L'));   } return; }
-  if (e.key === 'Backspace'  && side === 'R' && isAtStart(ed))     { e.preventDefault(); if (pages[spread])     focusEnd($('ed-L'));   return; }
-  if (e.key === 'Delete'     && side === 'L' && isAtLastLine(ed))  { e.preventDefault(); if (pages[spread + 1]) focusStart($('ed-R')); return; }
-}
+  /* Backspace / Delete: remove one level of indentation if cursor is at the
+     boundary of a <blockquote> (what execCommand('indent') creates on plain text). */
+  if ((e.key === 'Backspace' || e.key === 'Delete') && rng.collapsed) {
+    let node = rng.startContainer;
+    if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+    let bq = null;
+    for (let tmp = node; tmp && tmp !== ed; tmp = tmp.parentElement) {
+      if (tmp.tagName === 'BLOCKQUOTE') { bq = tmp; break; }
+    }
+    if (bq) {
+      /* Check the cursor is at the very start (Backspace) or end (Delete) of the blockquote's text */
+      const boundary = document.createRange();
+      boundary.selectNodeContents(bq);
+      if (e.key === 'Backspace') boundary.setEnd(rng.startContainer, rng.startOffset);
+      else                       boundary.setStart(rng.endContainer, rng.endOffset);
+      if (boundary.toString().replace(/\u200B/g, '').trim().length === 0) {
+        e.preventDefault();
+        document.execCommand('outdent');
+        return;
+      }
+    }
+  }
 
-function closestList(node) {
-  let el = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
-  while (el) { if (['LI','UL','OL'].includes(el.tagName)) return el; el = el.parentElement; }
-  return null;
+  if (e.key === 'ArrowLeft'  && side === 'R' && isAtStart(ed)) { if (pages[spread])     { e.preventDefault(); focusEnd($('ed-L'));   } return; }
+  if (e.key === 'ArrowRight' && side === 'L' && isAtEnd(ed))   { if (pages[spread + 1]) { e.preventDefault(); focusStart($('ed-R')); } return; }
+  if (e.key === 'ArrowDown'  && side === 'L' && isAtEnd(ed))   { if (pages[spread + 1]) { e.preventDefault(); focusStart($('ed-R')); } return; }
+  if (e.key === 'ArrowUp'    && side === 'R' && isAtStart(ed)) { if (pages[spread])     { e.preventDefault(); focusEnd($('ed-L'));   } return; }
+  if (e.key === 'Backspace'  && side === 'R' && isAtStart(ed)) { if (pages[spread])     focusEnd($('ed-L'));   return; }
+  if (e.key === 'Delete'     && side === 'L' && isAtEnd(ed))   { if (pages[spread + 1]) focusStart($('ed-R')); return; }
 }
 
 function isAtStart(ed) {
@@ -591,28 +602,6 @@ function isAtEnd(ed) {
     }
   }
   return true;
-}
-
-function isAtLastLine(ed) {
-  const sel = window.getSelection();
-  if (!sel.rangeCount || !sel.isCollapsed) return false;
-  const caretRect = sel.getRangeAt(0).getBoundingClientRect();
-  if (caretRect.width === 0 && caretRect.height === 0) {
-    let node = sel.getRangeAt(0).startContainer;
-    while (node && node.parentNode !== ed) node = node.parentNode;
-    if (node) {
-      let next = node.nextSibling;
-      while (next) { if (next.textContent?.replace(/\u200B/g,'').trim().length > 0) return false; next = next.nextSibling; }
-      return true;
-    }
-  }
-  return caretRect.bottom > ed.getBoundingClientRect().bottom - 36;
-}
-
-function isAtFirstLine(ed) {
-  const sel = window.getSelection();
-  if (!sel.rangeCount || !sel.isCollapsed) return false;
-  return sel.getRangeAt(0).getBoundingClientRect().top < ed.getBoundingClientRect().top + 36;
 }
 
 function focusStart(ed) {
@@ -779,10 +768,10 @@ $('hl-btn').addEventListener('mousedown', e => {
   document.execCommand('hiliteColor', false, 'rgba(170,164,255,0.25)');
 });
 
-/* Superscript / Subscript — true toggle.
-   Case A: collapsed cursor inside tag → insert ZWS after tag, move cursor out.
-   Case B: selection inside tag → unwrap by replacing tag with its children.
-   Case C: no tag / spanning → execCommand wraps normally. */
+/* Superscript / Subscript — true toggle:
+   A: collapsed inside tag → insert ZWS after tag and move cursor out.
+   B: selection inside tag → unwrap (replace tag with its children).
+   C: no wrapping tag → execCommand wraps normally. */
 function applySuperSub(cmd) {
   ensureEditorFocused();
   const sel     = window.getSelection(); if (!sel?.rangeCount) return;
@@ -823,21 +812,13 @@ function applySuperSub(cmd) {
 $('sup-btn').addEventListener('mousedown', e => { e.preventDefault(); applySuperSub('superscript'); });
 $('sub-btn').addEventListener('mousedown', e => { e.preventDefault(); applySuperSub('subscript'); });
 
-/* Image — stored as base64 data URL; check size before inserting */
+/* Image — stored as base64 data URL; rejected if too tall to fit on one page */
 function compressImage(img, maxWidth = 800, quality = 0.7) {
   const canvas = document.createElement('canvas');
-
-  const scale = Math.min(1, maxWidth / img.naturalWidth);
-  const w = Math.floor(img.naturalWidth * scale);
-  const h = Math.floor(img.naturalHeight * scale);
-
-  canvas.width = w;
-  canvas.height = h;
-
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, w, h);
-
-  // convert to compressed JPEG
+  const scale  = Math.min(1, maxWidth / img.naturalWidth);
+  canvas.width  = Math.floor(img.naturalWidth  * scale);
+  canvas.height = Math.floor(img.naturalHeight * scale);
+  canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
   return canvas.toDataURL('image/jpeg', quality);
 }
 $('img-btn').addEventListener('click', () => $('img-inp').click());
@@ -846,7 +827,6 @@ $('img-inp').addEventListener('change', function() {
   this.value = '';
   const r = new FileReader();
   r.onload = ev => {
-  const originalDataUrl = ev.target.result;
   const img = new Image();
   img.onload = () => {
     const dataUrl = compressImage(img, 900, 0.7);
@@ -867,7 +847,7 @@ $('img-inp').addEventListener('change', function() {
     liveInput(activeEditor.id === 'ed-L' ? 'L' : 'R');
     schedulePersist();
   };
-  img.src = originalDataUrl;
+  img.src = ev.target.result;
 };
   r.readAsDataURL(f);
 });
@@ -909,7 +889,8 @@ const hdBtn = $('hd-btn'), hdDrop = $('hd-drop');
 hdBtn.addEventListener('mousedown', e => { e.preventDefault(); hdDrop.classList.toggle('open'); });
 hdDrop.querySelectorAll('.hd-opt').forEach(opt => {
   opt.addEventListener('mousedown', e => {
-    e.preventDefault(); ensureEditorFocused();
+    e.preventDefault();
+    ensureEditorFocused();
     document.execCommand('formatBlock', false, opt.dataset.tag === 'p' ? 'P' : opt.dataset.tag.toUpperCase());
     hdDrop.classList.remove('open');
     setTimeout(() => liveInput(activeEditor.id === 'ed-L' ? 'L' : 'R'), 30);
@@ -918,7 +899,7 @@ hdDrop.querySelectorAll('.hd-opt').forEach(opt => {
 
 document.addEventListener('click', e => {
   if (!$('link-pop').contains(e.target) && !e.target.closest('#lnk-btn')) $('link-pop').classList.remove('show');
-  if (!hdDrop.contains(e.target) && e.target !== hdBtn) hdDrop.classList.remove('open');
+  if (!hdDrop.contains(e.target) && !e.target.closest('#hd-btn')) hdDrop.classList.remove('open');
 });
 
 
@@ -935,7 +916,8 @@ function schedulePersist() {
 function persistNow() {
   try {
     saveContent();
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ topics, pages, nTid, nPid, spread }));
+    let cTopics = Array.from(collapsedTopics);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ topics, pages, nTid, nPid, spread, cTopics }));
     showSaveToast();
   } catch (e) {
     console.warn('SimplBook: save failed:', e.message);
@@ -948,6 +930,10 @@ function loadFromStorage() {
     const raw = localStorage.getItem(STORAGE_KEY); if (!raw) return false;
     const s = JSON.parse(raw);
     topics = s.topics || []; pages = s.pages || [];
+    let cTopics = s.cTopics || new Set();
+    for(let i = 0; i < cTopics.length; i++) {
+      collapsedTopics.add(cTopics[i]);
+    }
     nTid = s.nTid || topics.length + 1; nPid = s.nPid || pages.length + 1; spread = s.spread || 0;
     pages.forEach(p => { p.fcNodes = p.fcNodes || []; p.fcEdges = p.fcEdges || []; });
     return topics.length > 0;
@@ -996,19 +982,16 @@ document.addEventListener('keydown', e => {
   if (hadData) {
     enableUI();
     renderSpread();
-    /* Belt-and-suspenders: call renderSidebar explicitly in case renderSpread
-       had an internal exception before reaching its own renderSidebar() call,
-       and again after one animation frame for any browser layout timing. */
     renderSidebar();
     requestAnimationFrame(renderSidebar);
   }
 })();
 
-/* Inject all component CSS (keeps styles.css untouched) */
+/* Inject component CSS */
 (function injectStyles() {
   const style = document.createElement('style');
   style.textContent = `
-    /* ── Topic toggle button (replaces static bullet dot) ── */
+    /* Topic collapse toggle */
     .topic-toggle {
       width: 18px; height: 18px; flex-shrink: 0;
       display: flex; align-items: center; justify-content: center;
@@ -1019,7 +1002,7 @@ document.addEventListener('keydown', e => {
     .toggle-arrow { display: inline-block; transition: transform .2s; font-size: 12px; line-height: 1; }
     .topic-toggle.collapsed .toggle-arrow { transform: rotate(-90deg); }
 
-    /* ── Topic delete button — fade in on row hover ── */
+    /* Topic delete button — fades in on row hover */
     .topic-del-btn {
       margin-left: auto; flex-shrink: 0;
       background: none; border: none; cursor: pointer;
@@ -1032,7 +1015,7 @@ document.addEventListener('keydown', e => {
     .topic-row:hover .topic-del-btn { opacity: 1; }
     .topic-del-btn:hover { background: rgba(220,60,60,0.15); }
 
-    /* ── Page delete button — fade in on page-head hover ── */
+    /* Page delete button — fades in on page-head hover */
     .pg-del-btn {
       margin-left: auto; flex-shrink: 0;
       background: none; border: none; cursor: pointer;
@@ -1045,7 +1028,7 @@ document.addEventListener('keydown', e => {
     .pg-head:hover .pg-del-btn { opacity: 1; }
     .pg-del-btn:hover { background: rgba(220,60,60,0.15); }
 
-    /* ── Heading indentation levels ── */
+    /* Heading indentation by level */
     .h-entry.h-level-1 { padding-left: 6px; }
     .h-entry.h-level-2 { padding-left: 18px; }
     .h-entry.h-level-3 { padding-left: 30px; }
@@ -1054,7 +1037,7 @@ document.addEventListener('keydown', e => {
 })();
 
 
-/* ── 7. FLOWCHART ───────────────────────────────────────────────────────────────────────────── */
+/* ── 7. FLOWCHART (stub — to be implemented) ────────────────────────────────────────────────── */
 
 function drawEdge()           {}
 function handleConnectClick() {}
